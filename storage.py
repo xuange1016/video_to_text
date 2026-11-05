@@ -14,10 +14,19 @@ from platforms import Cancelled, Media, MediaError, MESSAGES
 ACTIVE = ("queued", "subtitle", "audio", "model", "loading", "transcribing", "saving")
 RETRYABLE = ("failed", "cancelled", "interrupted", "save_pending")
 LABELS = dict(zip(
-    (*ACTIVE, *RETRYABLE, "done"),
+    (*ACTIVE, *RETRYABLE, "done", "waiting"),
     ("等待处理", "获取平台字幕", "获取音频", "下载模型", "加载模型", "语音转写", "保存文件",
-     "失败", "已取消", "已中断", "待保存", "已完成"),
+     "失败", "已取消", "已中断", "待保存", "已完成", "待启动"),
 ))
+
+
+def compact_title(title):
+    title = " ".join(title.split())
+    return title if len(title) <= 24 else title[:24].rstrip() + "…"
+
+
+def effective_options(row):
+    return json.loads(row["batch_options"]) | json.loads(row["job_options"] or "{}")
 
 
 class Store:
@@ -35,10 +44,17 @@ class Store:
                     media TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'queued',
                     result TEXT, error TEXT NOT NULL DEFAULT '', code TEXT NOT NULL DEFAULT '',
                     progress REAL, target TEXT NOT NULL DEFAULT '', destination TEXT NOT NULL DEFAULT '',
-                    force_audio INTEGER NOT NULL DEFAULT 0, parent_job INTEGER REFERENCES jobs(id)
+                    force_audio INTEGER NOT NULL DEFAULT 0, parent_job INTEGER REFERENCES jobs(id),
+                    alias TEXT NOT NULL DEFAULT '', job_options TEXT
                 );
                 CREATE INDEX IF NOT EXISTS jobs_batch_idx ON jobs(batch, id);
+                CREATE INDEX IF NOT EXISTS jobs_status_idx ON jobs(status, id);
             """)
+            columns = {row["name"] for row in db.execute("PRAGMA table_info(jobs)")}
+            if "alias" not in columns:
+                db.execute("ALTER TABLE jobs ADD COLUMN alias TEXT NOT NULL DEFAULT ''")
+            if "job_options" not in columns:
+                db.execute("ALTER TABLE jobs ADD COLUMN job_options TEXT")
             parameters = ",".join("?" * len(ACTIVE))
             db.execute(f"""
                 UPDATE jobs SET status=CASE WHEN result IS NULL THEN 'interrupted' ELSE 'save_pending' END,
@@ -65,18 +81,56 @@ class Store:
         with self.connect() as db:
             db.execute("INSERT OR REPLACE INTO settings (id, data) VALUES (1, ?)", (json.dumps(settings),))
 
-    def create(self, items, options, parent=None):
+    def create(self, items, options, parent=None, waiting=False):
         with self.connect() as db:
             batch = db.execute(
                 "INSERT INTO batches (created, options) VALUES (?, ?)",
                 (datetime.now().astimezone().isoformat(timespec="seconds"), json.dumps(options)),
             ).lastrowid
             db.executemany(
-                "INSERT INTO jobs (batch, media, force_audio, parent_job) VALUES (?, ?, ?, ?)",
-                [(batch, json.dumps(asdict(media), ensure_ascii=False), int(parent is not None), parent)
-                 for media in items],
+                "INSERT INTO jobs (batch, media, force_audio, parent_job, status) VALUES (?, ?, ?, ?, ?)",
+                [(batch, json.dumps(asdict(media), ensure_ascii=False), int(parent is not None), parent,
+                  "waiting" if waiting else "queued") for media in items],
             )
             return batch
+
+    def edit_waiting(self, job, alias, options):
+        overrides = {key: options[key] for key in ("root", "model", "format") if key in options}
+        with self.connect() as db:
+            cursor = db.execute("""
+                UPDATE jobs SET alias=?, job_options=? WHERE id=? AND status='waiting'
+            """, (" ".join(alias.split()), json.dumps(overrides, ensure_ascii=False), job))
+            return cursor.rowcount == 1
+
+    def delete_waiting(self, job):
+        with self.connect() as db:
+            row = db.execute("""
+                DELETE FROM jobs WHERE id=? AND status='waiting'
+                AND NOT EXISTS (SELECT 1 FROM jobs child WHERE child.parent_job=?)
+                RETURNING batch
+            """, (job, job)).fetchone()
+            if row is None:
+                return False
+            db.execute("""
+                DELETE FROM batches WHERE id=? AND NOT EXISTS (SELECT 1 FROM jobs WHERE batch=?)
+            """, (row["batch"], row["batch"]))
+            return True
+
+    def release_waiting(self, job=0):
+        with self.connect() as db:
+            rows = db.execute("""
+                UPDATE jobs SET status='queued' WHERE status='waiting' AND (?=0 OR id=?) RETURNING id
+            """, (job, job)).fetchall()
+            return sorted(row["id"] for row in rows)
+
+    def prepare_retry(self, batch, job=0):
+        statuses = ",".join("?" * len(RETRYABLE))
+        with self.connect() as db:
+            rows = db.execute(f"""
+                UPDATE jobs SET status='queued', progress=NULL, error='', code=''
+                WHERE batch=? AND (?=0 OR id=?) AND status IN ({statuses}) RETURNING id
+            """, (batch, job, job, *RETRYABLE)).fetchall()
+            return sorted(row["id"] for row in rows)
 
     def change(self, job, **values):
         # Names originate from the worker and GUI controller.
@@ -87,24 +141,54 @@ class Store:
     def item(self, job):
         with self.connect() as db:
             row = db.execute("""
-                SELECT jobs.*, batches.options FROM jobs JOIN batches ON batches.id=jobs.batch WHERE jobs.id=?
+                SELECT jobs.*, batches.options AS batch_options
+                FROM jobs JOIN batches ON batches.id=jobs.batch WHERE jobs.id=?
             """, (job,)).fetchone()
-        return dict(row) if row else None
+        if row is None:
+            return None
+        item = dict(row)
+        item["options"] = json.dumps(effective_options(row), ensure_ascii=False)
+        del item["batch_options"]
+        return item
 
     def list_jobs(self, batch):
+        return self._job_rows("jobs.batch=?", (batch,))
+
+    def waiting_jobs(self):
+        return self._job_rows("jobs.status=?", ("waiting",))
+
+    def active_jobs(self):
+        parameters = ",".join("?" * len(ACTIVE))
+        return self._job_rows(f"jobs.status IN ({parameters})", ACTIVE)
+
+    def _job_rows(self, predicate, parameters):
         with self.connect() as db:
-            rows = db.execute("""
-                SELECT id, media, status, progress, error, destination,
-                result IS NOT NULL AS hasResult FROM jobs WHERE batch=? ORDER BY id
-            """, (batch,)).fetchall()
-        return [json.loads(row["media"]) | dict(row) | {"stateLabel": LABELS[row["status"]]}
-                for row in rows]
+            rows = db.execute(f"""
+                SELECT jobs.id, jobs.batch, jobs.media, jobs.status, jobs.progress, jobs.error,
+                       jobs.destination, jobs.alias, jobs.job_options, batches.options AS batch_options,
+                       jobs.result IS NOT NULL AS hasResult
+                FROM jobs JOIN batches ON batches.id=jobs.batch WHERE {predicate} ORDER BY jobs.id
+            """, parameters).fetchall()
+        jobs = []
+        for row in rows:
+            media = json.loads(row["media"])
+            options = effective_options(row)
+            details = dict(row)
+            del details["job_options"], details["batch_options"]
+            jobs.append(media | details | {
+                "stateLabel": LABELS[row["status"]],
+                "displayTitle": compact_title(row["alias"] or media["title"]),
+                "locator": media["ref"],
+                **{key: options.get(key, "") for key in ("root", "model", "format")},
+            })
+        return jobs
 
     def list_batches(self):
         with self.connect() as db:
             rows = db.execute("""
                 SELECT batches.id, batches.created, COUNT(jobs.id) AS total,
-                SUM(jobs.status='done') AS done, SUM(jobs.status IN ('failed','cancelled','interrupted','save_pending')) AS failed
+                SUM(jobs.status='done') AS done, SUM(jobs.status='waiting') AS waiting,
+                SUM(jobs.status IN ('failed','cancelled','interrupted','save_pending')) AS failed
                 FROM batches JOIN jobs ON jobs.batch=batches.id GROUP BY batches.id ORDER BY batches.id DESC
             """).fetchall()
         return [dict(row) for row in rows]
@@ -117,7 +201,7 @@ class Store:
         return [row["id"] for row in rows if row["status"] in (*RETRYABLE, "queued")]
 
 
-def run_batch(store, batch, item, output_override, platforms, transcriber, ffmpeg, temp, notify, cancel):
+def run_batch(store, batch, item, output_override, platforms, transcriber, ffmpeg, temp, notify, cancel, *, observe=None):
     for job_id in store.jobs_to_run(batch, item):
         job = store.item(job_id)
         if cancel():
@@ -139,6 +223,8 @@ def run_batch(store, batch, item, output_override, platforms, transcriber, ffmpe
             bucket = int(progress * 50) if progress is not None else None
             if [status, bucket] != previous:
                 previous[:] = status, bucket
+                if observe is not None:
+                    observe(job_id, status, progress)
                 store.change(job_id, status=status, progress=progress, error="", code="")
                 notify()
 

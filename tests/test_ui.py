@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from threading import Event
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("QT_QUICK_BACKEND", "software")
@@ -17,10 +18,25 @@ from main import Controller
 def test_click_through_import_selection_and_export(tmp_path, monkeypatch):
     app = QGuiApplication.instance() or QGuiApplication([])
     controller = Controller(tmp_path)
-    source = tmp_path / "测试视频.mp4"
+    source = tmp_path / "测试视频标题很长以便检查队列里的自动简称以及原始文件名是否保留完整.mp4"
     source.touch()
+    removed_source = tmp_path / "待移除.mp4"
+    removed_source.touch()
+    later_source = tmp_path / "稍后转写.mp4"
+    later_source.touch()
+    advance = Event()
+    complete = Event()
+
+    def transcribe(path, _model, report, _cancel):
+        report("transcribing", 0.25)
+        if path == source:
+            advance.wait(timeout=6)
+            report("transcribing", 0.5)
+            complete.wait(timeout=6)
+        return [Segment(0, 2, "桌面流程测试。")]
+
     monkeypatch.setattr(controller.platforms, "duration", lambda *_: 2)
-    monkeypatch.setattr(controller.transcriber, "transcribe", lambda *_: [Segment(0, 2, "桌面流程测试。")])
+    monkeypatch.setattr(controller.transcriber, "transcribe", transcribe)
     controller.saveSettings(str(tmp_path / "导出"), "medium", "both")
     engine = QQmlApplicationEngine()
     warnings = []
@@ -30,8 +46,17 @@ def test_click_through_import_selection_and_export(tmp_path, monkeypatch):
     window = engine.rootObjects()[0]
     assert isinstance(window, QQuickWindow)
 
+    def find(name):
+        def scan(item):
+            if item.objectName() == name:
+                return item
+            return next((match for child in item.childItems() if (match := scan(child))), None)
+
+        return window.findChild(QObject, name) or scan(window.contentItem())
+
     def click(name):
-        control = window.findChild(QObject, name)
+        QTest.qWait(60)
+        control = find(name)
         assert control and control.property("visible") and control.property("enabled"), name
         point = control.mapToScene(QPointF(control.width() / 2, control.height() / 2)).toPoint()
         QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, point)
@@ -53,20 +78,67 @@ def test_click_through_import_selection_and_export(tmp_path, monkeypatch):
 
     QTest.qWait(200)
     snapshot("01-import.png")
-    window.findChild(QObject, "sourceInput").setProperty("text", str(source))
+    find("sourceInput").setProperty("text", f"{source}\n{removed_source}\n{later_source}")
     click("resolveMaterials")
     wait(lambda: controller.stage == 2)
     click("selectAllMaterials")
-    assert controller.selectedCount == 1
+    assert controller.selectedCount == 3
     QTest.qWait(100)
     snapshot("02-select.png")
     click("submitBatch")
-    wait(lambda: controller.stage == 3 and not controller.busy)
+    wait(lambda: len(controller.waitingJobs) == 3)
+    assert not controller.running
+    chosen = next(job for job in controller.waitingJobs if job["locator"] == str(source))
+    removed = next(job for job in controller.waitingJobs if job["locator"] == str(removed_source))
+    later = next(job for job in controller.waitingJobs if job["locator"] == str(later_source))
+    assert chosen["displayTitle"] != chosen["title"]
+    snapshot("03-waiting.png")
+    click(f"editWaiting_{chosen['id']}")
+    find("waitingAlias").setProperty("text", "采访初稿")
+    click("saveWaiting")
+    assert controller.waitingJobs[0]["displayTitle"] == "采访初稿"
+    click(f"removeWaiting_{removed['id']}")
+    click("confirmRemoveWaiting")
+    assert len(controller.waitingJobs) == 2
+    assert removed_source.is_file()
+    click(f"startWaiting_{chosen['id']}")
+    wait(lambda: controller.activeJobs and controller.activeJobs[0]["progress"] == 0.25)
+    assert [job["id"] for job in controller.waitingJobs] == [later["id"]]
+    assert find("queueModel").property("count") == 2
+    wait_edit = find(f"editWaiting_{later['id']}")
+    wait_edit.forceActiveFocus()
+    QTest.qWait(1600)
+    advance.set()
+    wait(lambda: controller.activeJobs and controller.activeJobs[0]["progress"] == 0.5)
+    assert find(f"editWaiting_{later['id']}") is wait_edit
+    assert wait_edit.hasActiveFocus()
+    assert "50%" in find(f"activeStatus_{chosen['id']}").property("text")
+    assert "剩余约" in find(f"activeStatus_{chosen['id']}").property("text")
+    snapshot("04-running.png")
+    window.resize(860, 620)
+    QTest.qWait(100)
+    snapshot("05-running-compact.png")
+    complete.set()
+    wait(lambda: not controller.running)
+    click("startAllWaiting")
+    wait(lambda: not controller.running and not controller.waitingJobs)
+    click("navHistory")
+    click(f"historyBatch_{chosen['batch']}")
     assert controller.detail["status"] == "done"
     assert controller.detail["text"] == "桌面流程测试。"
     assert {f.name for f in Path(controller.detail["destination"]).iterdir()} == {"文案.txt", "字幕.srt"}
     QTest.qWait(100)
-    snapshot("03-result.png")
+    copy_button = find("copyResult")
+    assert copy_button.mapToScene(QPointF(0, copy_button.height())).y() < window.height() - 20
+    snapshot("06-result-compact.png")
+    window.resize(1280, 800)
+    QTest.qWait(100)
+    snapshot("07-result.png")
+    click("navSettings")
+    find("parallelism").setProperty("currentIndex", 1)
+    click("saveSettings")
+    assert controller.settings["parallelism"] == 2
+    snapshot("08-settings.png")
     assert not warnings, warnings
     window.close()
     app.processEvents()

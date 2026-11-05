@@ -24,6 +24,8 @@ from platforms import Cancelled, MediaError, NO_WINDOW
 MODEL_SIZES = {"small": "约 480 MB", "medium": "约 1.5 GB"}
 MODEL_FILES = ("config.json", "model.bin", "tokenizer.json", "vocabulary.txt")
 MINIMUM_MODEL_BYTES = {"small": 400_000_000, "medium": 1_300_000_000}
+MAX_PARALLEL = 3
+EXPORT_LOCK = threading.Lock()
 os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
 TIMECODE = re.compile(r"(?:(\d+):)?(\d{2}):(\d{2})[,.](\d{3})")
 TIMERANGE = re.compile(r"(?m)^(" + TIMECODE.pattern + r")\s+-->\s+(" + TIMECODE.pattern + r")[^\r\n]*")
@@ -126,31 +128,45 @@ class Transcriber:
         self.model = None
         self.name = None
         self.cc = OpenCC("t2s")
+        self._model_lock = threading.Lock()
+        self._text_lock = threading.Lock()
 
     def normalize(self, segments):
-        result = (Segment(s.start, s.end, self.cc.convert(s.text.strip())) for s in segments)
+        with self._text_lock:
+            result = [Segment(s.start, s.end, self.cc.convert(s.text.strip())) for s in segments]
         return sorted(result, key=lambda s: (s.start, s.end))
 
     def read_model(self, name, report, cancel):
         from faster_whisper import WhisperModel
 
-        if self.name == name and self.model:
-            return self.model
-        self.name, self.model = None, None
-        path = model_path(name, self.models)
+        if not self._model_lock.acquire(blocking=False):
+            report("loading", None)
+            while not self._model_lock.acquire(timeout=.2):
+                if cancel():
+                    raise Cancelled
         try:
+            if cancel():
+                raise Cancelled
+            if self.name == name and self.model:
+                return self.model
+            self.name, self.model = None, None
+            path = model_path(name, self.models)
             if not path:
                 path = self.download_model(name, report, cancel)
             if cancel():
                 raise Cancelled
             report("loading", None)
-            self.model = WhisperModel(str(path), device="cpu", compute_type="int8", local_files_only=True)
+            cpu_threads = max(1, min(4, (os.cpu_count() or 1) // MAX_PARALLEL))
+            self.model = WhisperModel(str(path), device="cpu", compute_type="int8", local_files_only=True,
+                                      num_workers=MAX_PARALLEL, cpu_threads=cpu_threads)
             self.name = name
             return self.model
         except Cancelled:
             raise
         except Exception as exc:
             raise MediaError("model") from exc
+        finally:
+            self._model_lock.release()
 
     def download_model(self, name, report, cancel):
         from huggingface_hub import snapshot_download
@@ -167,14 +183,15 @@ class Transcriber:
             def display(self, msg=None, pos=None):
                 if cancel():
                     raise Cancelled
-                if self.unit == "B" and self.total:
+                # snapshot_download reports each file separately. Only show the weights transfer.
+                if self.unit == "B" and self.total and self.total >= MINIMUM_MODEL_BYTES[name]:
                     report("model", min(0.99, self.n / self.total))
 
         path = self.models / f"faster-whisper-{name}"
-        report("model", None)
         for endpoint in ("https://huggingface.co", "https://hf-mirror.com"):
             if cancel():
                 raise Cancelled
+            report("model", None)
             try:
                 snapshot_download(
                     repo_id=f"Systran/faster-whisper-{name}", local_dir=path, endpoint=endpoint,
@@ -221,13 +238,13 @@ class Transcriber:
 def prepare_audio(ffmpeg, sources, destination, duration, report, cancel):
     if not sources:
         raise MediaError("no_audio")
-    report("audio", None)
     last = "decode"
     # Alternatives often point to the same bytes. Limit retries across CDNs.
     for source in sources[:6]:
         if cancel():
             raise Cancelled
         try:
+            report("audio", None)
             stream_audio(ffmpeg, source, destination, duration, report, cancel)
             return
         except MediaError as exc:
@@ -395,6 +412,11 @@ def published(destination, files):
 
 def export_result(root, title, suffix, files, reserved, remember):
     root = check_output(root)
+    with EXPORT_LOCK:
+        return publish_export(root, title, suffix, files, reserved, remember)
+
+
+def publish_export(root, title, suffix, files, reserved, remember):
     if reserved:
         existing = Path(reserved)
         if existing.parent == root and published(existing, files):

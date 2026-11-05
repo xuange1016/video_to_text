@@ -4,10 +4,11 @@
 
 ## 使用
 
-1. 运行安装包，在开始菜单打开「片语」。
-2. 在「文案提取」粘贴分享文本、视频链接或本地绝对路径，或选择一个文件夹。点「解析素材」。
-3. 勾选需要处理的素材，选保存目录、导出格式和模型。点「提取 N 条文案」。
-4. 完成的文稿可在应用内复制，或从结果页打开文件夹。任务记录可以打开旧文稿、重试未完成项和补存。
+1. 双击免安装目录里的 `Pianyu.exe`，或安装后从开始菜单打开「片语」。复制到另一台 Windows 11 x64 电脑时，请复制整个 `Pianyu` 文件夹。
+2. 在「导入素材」粘贴分享文本、视频链接或本地绝对路径，也可以选择文件夹。解析后勾选素材，选择保存目录、导出格式和模型，加入任务队列。
+3. 在「任务队列」查看等待项。点「编辑」可改简称、模型、格式和保存目录，也可以移除等待项。点击单条「开始」或「开始全部」后，应用按顺序安排处理。等待项重启后仍会保留。
+4. 转写时可以继续导入素材。任务行显示当前阶段、有数据的阶段百分比和可估算时的预计剩余时间。在「设置」可将同时处理数从默认 1 条调到 2 或 3 条。调低限额后，正在处理的任务先完成。
+5. 在「任务记录」可看完整标题、打开旧文稿、重试未完成项和补存。列表默认使用短标题，用户填写的简称用于辨认任务，导出目录仍由原始标题生成。
 
 每条结果存于指定目录下的标题文件夹。TXT 是可读文稿，SRT 带时间码。默认先试可访问的中文字幕；需要语音转写时使用模型并统一转简体。
 
@@ -24,9 +25,11 @@
 
 在 Python 3.11 虚拟环境安装 requirements.txt。用 Playwright 下载 Chromium，把 FFmpeg 和 ffprobe 放在 .build/tools 或加入 PATH，然后运行 main.py。
 
-Windows 安装包由 build.ps1 生成。构建环境还需要 PyInstaller 6.22.3 和 Inno Setup。把 Inno 的 ISCC.exe 放在 .build/inno，把 FFmpeg、ffprobe 和 yt-dlp.exe 及其许可放在 .build/release-tools，将 Playwright 的完整 Chromium 安装到 .build/browsers，并把 Noto Sans SC OTF 与 OFL 放在 .build/fonts。
+运行 `./build.ps1` 生成免安装目录和安装包。`./build.ps1 -PortableOnly` 只生成免安装目录。构建需要 PyInstaller 6.22.3。生成安装包时还需要将 Inno Setup 的 `ISCC.exe` 放在 `.build/inno`。把 FFmpeg、ffprobe 和 yt-dlp.exe 及其许可放在 `.build/release-tools`，将 Playwright 的完整 Chromium 安装到 `.build/browsers`，并把 Noto Sans SC OTF 与 OFL 放在 `.build/fonts`。
+
+1.1 沿用 PySide6、PyInstaller 和 Inno Setup，免安装目录自带 Python、Qt、媒体工具和 Chromium。Tauri 可为 WebView 界面打包 Python sidecar。迁移时需重写 QML 界面并按目标平台分别封装转写、媒体和浏览器依赖。当前版本的便携范围为 Windows 11 x64，任务数据库和模型默认仍保存在当前 Windows 用户目录。
 
 
 ## 历史版本补录说明
 
-这是片语 1.0.0 的真实里程碑源码，于 2026-11-06 集中整理入库。此处说明反映当时功能，日常使用请下载最新版本。恢复与字节码比对见 [版本历史说明](docs/HISTORY.md)，最新开发说明见 [开发文档](https://github.com/xuange1016/video_to_text/blob/main/docs/DEVELOPMENT.md)。
+这是片语 1.1.0 的真实里程碑源码，于 2026-11-06 集中整理入库。此处说明反映当时功能，日常使用请下载最新版本。恢复与字节码比对见 [版本历史说明](docs/HISTORY.md)，最新开发说明见 [开发文档](https://github.com/xuange1016/video_to_text/blob/main/docs/DEVELOPMENT.md)。

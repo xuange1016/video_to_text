@@ -124,8 +124,9 @@ def test_model_progress_closes_without_a_console(tmp_path, monkeypatch):
     import engine
 
     def download(local_dir, tqdm_class, **_options):
-        with tqdm_class(total=2, unit="B", mininterval=0) as progress:
-            progress.update(2)
+        size = engine.MINIMUM_MODEL_BYTES["small"]
+        with tqdm_class(total=size, unit="B", mininterval=0) as progress:
+            progress.update(size)
         local_dir.mkdir()
 
     monkeypatch.setattr(huggingface_hub, "snapshot_download", download)

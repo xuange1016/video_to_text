@@ -11,15 +11,27 @@ ApplicationWindow {
     minimumWidth: 860
     minimumHeight: 620
     visible: true
-    color: "#f5f7f4"
+    color: "#f9f6ef"
     font.family: appState.fontFamily
     font.pixelSize: 14
+    palette.window: ivory
+    palette.base: ivory
+    palette.button: inset
+    palette.buttonText: ink
+    palette.windowText: ink
+    palette.text: ink
+    palette.highlight: accent
+    palette.highlightedText: ivory
 
-    readonly property color ink: "#122820"
-    readonly property color muted: "#566961"
-    readonly property color green: "#166344"
-    readonly property color mint: "#e2efe3"
-    readonly property color border: "#dbe4db"
+    readonly property color ink: "#292d26"
+    readonly property color muted: "#656559"
+    readonly property color accent: "#a04434"
+    readonly property color mint: "#f1e0d7"
+    readonly property color border: "#e3dccf"
+    readonly property color inset: "#efeae0"
+    readonly property color ivory: "#fffcf7"
+    readonly property color rail: "#252f29"
+    readonly property color railText: "#f5eee0"
     readonly property var models: ["small", "medium"]
     readonly property var formats: ["both", "txt", "srt"]
     readonly property var modelLabels: ["快速 · small", "均衡 · medium"]
@@ -30,16 +42,85 @@ ApplicationWindow {
     property string settingsFolder: appState.settings.root
     property bool timeline: false
     property bool chooseSettingFolder: false
+    property bool chooseEditingFolder: false
     property int saveJob: 0
     property string message: ""
+    property string resultBack: "queue"
+    property string editError: ""
+    property var editing: ({})
+    property var removing: ({})
+    property var queueIndex: ({})
+    readonly property bool parsing: appState.task === "resolve"
+    readonly property var queueJobs: appState.activeJobs.concat(appState.waitingJobs)
     readonly property int completed: appState.jobs.filter(function(job) { return job.status === "done" }).length
     readonly property int retryable: appState.jobs.filter(function(job) {
         return ["failed", "interrupted", "cancelled", "save_pending"].includes(job.status)
     }).length
     readonly property bool split: width >= 1150
+    onQueueJobsChanged: if (queueModel) syncQueue()
+    Component.onCompleted: syncQueue()
+
+    ListModel { id: queueModel; objectName: "queueModel" }
+
+    function syncQueue() {
+        const next = {}
+        const order = []
+        for (const job of queueJobs) {
+            if (next[job.id]) continue
+            next[job.id] = job
+            order.push(job.id)
+        }
+        queueIndex = next
+        const kept = {}
+        for (let i = queueModel.count - 1; i >= 0; --i) {
+            const id = queueModel.get(i).jobId
+            if (!next[id] || kept[id]) queueModel.remove(i)
+            else kept[id] = true
+        }
+        for (let i = 0; i < order.length; ++i) {
+            const id = order[i]
+            if (i < queueModel.count && queueModel.get(i).jobId === id) continue
+            let oldPosition = i + 1
+            while (oldPosition < queueModel.count && queueModel.get(oldPosition).jobId !== id)
+                ++oldPosition
+            if (oldPosition < queueModel.count) queueModel.move(oldPosition, i, 1)
+            else queueModel.insert(i, {jobId: id})
+        }
+    }
+
+    function jobTitle(job) {
+        return job.displayTitle || job.title || ""
+    }
+
+    function measured(job) {
+        return typeof job.progress === "number" && job.status !== "done"
+    }
+
+    function progressLabel(job) {
+        if (!measured(job)) return ""
+        const pct = Math.floor(job.progress * 100) + "%"
+        if (typeof job.eta !== "number" || job.eta < 0) return pct
+        const seconds = Math.max(1, Math.ceil(job.eta))
+        return pct + " · 剩余约 " + (seconds < 60 ? seconds + " 秒" : duration(seconds))
+    }
+
+    function openResult(batch, job, backPage) {
+        resultBack = backPage
+        timeline = false
+        message = ""
+        appState.viewBatch(batch)
+        if (job) appState.openJob(job)
+        window.page = "result"
+    }
+
+    function navigate(target) {
+        if (target === "work" && appState.stage === 3) appState.newBatch()
+        window.message = ""
+        window.page = target
+    }
 
     function duration(value) {
-        if (typeof value !== "number" || value <= 0) return "待获取"
+        if (typeof value !== "number" || value <= 0) return "时长待获取"
         const sec = Math.floor(value)
         return Math.floor(sec / 60) + ":" + ("0" + sec % 60).slice(-2)
     }
@@ -55,9 +136,12 @@ ApplicationWindow {
         id: control
         property bool primary: false
         property bool highlightedNav: false
+        property bool onRail: false
+        property bool quiet: false
+        property string navGlyph: ""
         implicitHeight: 41
         implicitWidth: Math.max(86, label.implicitWidth + 30)
-        leftPadding: 15
+        leftPadding: onRail ? 43 : 15
         rightPadding: 15
         hoverEnabled: true
         contentItem: Text {
@@ -65,24 +149,79 @@ ApplicationWindow {
             text: control.text
             font.family: window.font.family
             font.pixelSize: 14
-            font.bold: control.primary || control.highlightedNav
-            color: !control.enabled ? "#677871" : control.primary ? "white" : window.ink
-            horizontalAlignment: Text.AlignHCenter
+            font.weight: control.primary || control.highlightedNav ? Font.DemiBold : Font.Normal
+            color: control.onRail ? window.railText : !control.enabled ? window.muted : control.primary ? "white" : window.ink
+            horizontalAlignment: control.onRail ? Text.AlignLeft : Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
         }
         background: Rectangle {
+            radius: 8
+            color: control.onRail ? (control.highlightedNav ? "#435047" : control.hovered ? "#343f36" : "transparent")
+                   : !control.enabled ? "#e8e1d5" : control.primary ? (control.down ? "#7c3126" : control.hovered ? "#8c372a" : window.accent)
+                   : control.highlightedNav ? window.mint : control.hovered ? "#e8e1d6" : control.quiet ? "transparent" : window.inset
+            border.width: control.visualFocus ? 2 : 0
+            border.color: control.onRail ? "#f4c0ae" : window.accent
+        }
+        Canvas {
+            visible: control.navGlyph !== ""
+            width: 17
+            height: 17
+            anchors.left: parent.left
+            anchors.leftMargin: 15
+            anchors.verticalCenter: parent.verticalCenter
+            onPaint: {
+                const ctx = getContext("2d")
+                ctx.reset()
+                ctx.scale(width / 24, height / 24)
+                ctx.strokeStyle = window.railText
+                ctx.lineWidth = 1.7
+                ctx.lineCap = "round"
+                ctx.lineJoin = "round"
+                ctx.beginPath()
+                if (control.navGlyph === "import") {
+                    ctx.moveTo(4, 14); ctx.lineTo(4, 19); ctx.lineTo(20, 19); ctx.lineTo(20, 14)
+                    ctx.moveTo(12, 4); ctx.lineTo(12, 14)
+                    ctx.moveTo(8, 10); ctx.lineTo(12, 14); ctx.lineTo(16, 10)
+                } else if (control.navGlyph === "queue") {
+                    for (let y = 6; y <= 18; y += 6) {
+                        ctx.moveTo(4, y); ctx.lineTo(6, y)
+                        ctx.moveTo(10, y); ctx.lineTo(y === 18 ? 16 : 20, y)
+                    }
+                } else if (control.navGlyph === "history") {
+                    ctx.arc(12, 12, 8, -2.85, 3.05)
+                    ctx.moveTo(3, 7); ctx.lineTo(4.1, 10.2); ctx.lineTo(7.3, 9.3)
+                    ctx.moveTo(12, 8); ctx.lineTo(12, 12); ctx.lineTo(15, 14)
+                } else if (control.navGlyph === "settings") {
+                    ctx.moveTo(4, 7); ctx.lineTo(20, 7)
+                    ctx.moveTo(4, 17); ctx.lineTo(20, 17)
+                    ctx.moveTo(9, 4); ctx.lineTo(9, 10)
+                    ctx.moveTo(15, 14); ctx.lineTo(15, 20)
+                }
+                ctx.stroke()
+            }
+        }
+    }
+
+    component Field: TextField {
+        id: field
+        color: window.ink
+        selectionColor: window.accent
+        selectedTextColor: window.ivory
+        placeholderTextColor: window.muted
+        selectByMouse: true
+        padding: 10
+        background: Rectangle {
             radius: 7
-            color: !control.enabled ? "#e9eee9" : control.primary ?
-                       (control.hovered ? "#104f36" : window.green) :
-                       control.highlightedNav || control.hovered ? window.mint : "#ffffff"
-            border.color: control.activeFocus ? window.green : control.primary ? "transparent" : window.border
+            color: window.inset
+            border.width: field.activeFocus ? 2 : 0
+            border.color: window.accent
         }
     }
 
     component Heading: Label {
         color: window.ink
         font.pixelSize: 19
-        font.bold: true
+        font.weight: Font.DemiBold
     }
 
     component Hint: Label {
@@ -91,9 +230,8 @@ ApplicationWindow {
     }
 
     component Surface: Rectangle {
-        color: "#ffffff"
-        border.color: window.border
-        radius: 11
+        color: window.ivory
+        radius: 15
     }
 
     component Status: Rectangle {
@@ -102,14 +240,14 @@ ApplicationWindow {
         implicitWidth: statusLabel.implicitWidth + 20
         implicitHeight: 27
         radius: 13
-        color: ["failed", "save_pending"].includes(status) ? "#fff0de" :
-                  status === "done" ? "#e0f0df" : "#edf1ed"
+        color: ["failed", "save_pending"].includes(status) ? window.mint :
+                  status === "done" ? "#e6ebe0" : window.inset
         Label {
             id: statusLabel
             anchors.centerIn: parent
             text: parent.label
-            color: parent.status === "failed" ? "#8b431c" :
-                       parent.status === "done" ? window.green : window.muted
+            color: parent.status === "failed" ? window.accent :
+                       parent.status === "done" ? "#3f5d46" : window.muted
             font.pixelSize: 12
             font.bold: true
         }
@@ -117,15 +255,15 @@ ApplicationWindow {
 
     component Meter: ProgressBar {
         id: meter
-        implicitHeight: 8
+        implicitHeight: 5
         padding: 0
-        background: Rectangle { color: "#e4ebe3"; radius: 4 }
+        background: Rectangle { color: "#e9dfd2"; radius: 3 }
         contentItem: Item {
             Rectangle {
                 height: parent.height
                 width: meter.visualPosition * parent.width
-                radius: 4
-                color: window.green
+                radius: 3
+                color: window.accent
             }
         }
     }
@@ -140,7 +278,9 @@ ApplicationWindow {
         title: "选择文稿保存目录"
         onAccepted: {
             const folder = window.localPath(selectedFolder)
-            if (window.chooseSettingFolder) {
+            if (window.chooseEditingFolder) {
+                editOutput.text = folder
+            } else if (window.chooseSettingFolder) {
                 window.settingsFolder = folder
                 defaultOutput.text = folder
             } else {
@@ -153,6 +293,109 @@ ApplicationWindow {
         id: recoverDialog
         title: "换一个目录保存文稿"
         onAccepted: appState.retry(window.saveJob, window.localPath(selectedFolder))
+    }
+    Dialog {
+        id: editDialog
+        title: "编辑等待任务"
+        anchors.centerIn: parent
+        modal: true
+        width: 515
+        onOpened: { window.editError = ""; aliasField.forceActiveFocus() }
+        ColumnLayout {
+            width: editDialog.availableWidth
+            spacing: 10
+            Hint {
+                Layout.fillWidth: true
+                textFormat: Text.PlainText
+                text: "原始标题：" + (window.editing.title || "")
+                maximumLineCount: 4
+                elide: Text.ElideRight
+                ToolTip.visible: editTitleHover.hovered
+                ToolTip.text: window.editing.title || ""
+                HoverHandler { id: editTitleHover }
+            }
+            Hint {
+                Layout.fillWidth: true
+                textFormat: Text.PlainText
+                text: window.editing.locator || ""
+                visible: text !== ""
+                wrapMode: Text.WrapAnywhere
+                maximumLineCount: 2
+                elide: Text.ElideMiddle
+            }
+            Label { text: "任务简称" }
+            Field {
+                id: aliasField
+                objectName: "waitingAlias"
+                Layout.fillWidth: true
+                Accessible.name: "任务简称"
+                maximumLength: 80
+                placeholderText: window.jobTitle(window.editing)
+            }
+            Hint { text: "简称只用于界面显示。留空时自动截取标题。" }
+            Label { text: "保存目录"; Layout.topMargin: 6 }
+            RowLayout {
+                Layout.fillWidth: true
+                Field { id: editOutput; Layout.fillWidth: true; Accessible.name: "任务保存目录" }
+                Action { text: "浏览"; onClicked: { window.chooseEditingFolder = true; outputDialog.open() } }
+            }
+            Hint { text: window.editError; visible: text !== ""; color: window.accent; Layout.fillWidth: true }
+            RowLayout {
+                Layout.fillWidth: true
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Label { text: "转写模型" }
+                    ComboBox { id: editModel; Layout.fillWidth: true; model: window.modelLabels; Accessible.name: "任务模型" }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Label { text: "导出格式" }
+                    ComboBox { id: editFormat; Layout.fillWidth: true; model: window.formatLabels; Accessible.name: "任务导出格式" }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: 10
+                Item { Layout.fillWidth: true }
+                Action { text: "取消"; quiet: true; onClicked: editDialog.close() }
+                Action {
+                    objectName: "saveWaiting"
+                    text: "保存任务"
+                    primary: true
+                    enabled: editOutput.text.trim() !== ""
+                    onClicked: {
+                        if (appState.editWaiting(window.editing.id, aliasField.text, editOutput.text,
+                                                 window.models[editModel.currentIndex],
+                                                 window.formats[editFormat.currentIndex]) !== false)
+                            editDialog.close()
+                    }
+                }
+            }
+        }
+    }
+    Dialog {
+        id: removeDialog
+        title: "移除等待任务？"
+        anchors.centerIn: parent
+        modal: true
+        width: 435
+        ColumnLayout {
+            width: removeDialog.availableWidth
+            spacing: 12
+            Heading { text: window.jobTitle(window.removing); Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText }
+            Hint { text: "任务将从队列移除，源文件会保留。" }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Action { text: "取消"; quiet: true; onClicked: removeDialog.close() }
+                Action {
+                    objectName: "confirmRemoveWaiting"
+                    text: "移除任务"
+                    primary: true
+                    onClicked: { appState.removeWaiting(window.removing.id); removeDialog.close() }
+                }
+            }
+        }
     }
     Dialog {
         id: quitDialog
@@ -173,6 +416,7 @@ ApplicationWindow {
         target: appState
         function onFeedback(value) {
             window.message = value
+            if (editDialog.visible) window.editError = value
             toastTimer.restart()
         }
     }
@@ -184,136 +428,134 @@ ApplicationWindow {
 
         Rectangle {
             Layout.fillHeight: true
-            Layout.preferredWidth: 172
-            color: "#edf2ed"
+            Layout.preferredWidth: window.split ? 196 : 164
+            color: window.rail
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 10
+                anchors.margins: window.split ? 20 : 15
+                spacing: 6
                 RowLayout {
                     Layout.fillWidth: true
-                    Layout.topMargin: 10
-                    Layout.bottomMargin: 25
-                    spacing: 9
-                    Rectangle {
-                        Layout.preferredWidth: 43
-                        Layout.preferredHeight: 43
-                        radius: 10
-                        color: "#123d2c"
-                        Row {
-                            anchors.centerIn: parent
-                            spacing: 3
-                            Repeater {
-                                model: [10, 17, 25, 16, 9]
-                                Rectangle { required property int modelData; width: 2; height: modelData
-                                    y: (25 - height) / 2; radius: 1; color: "#e0f7e8" }
-                            }
-                        }
+                    Layout.topMargin: 15
+                    Layout.bottomMargin: 44
+                    spacing: 10
+                    Image {
+                        source: "assets/pianyu.svg"
+                        sourceSize: Qt.size(88, 88)
+                        Layout.preferredWidth: 44
+                        Layout.preferredHeight: 44
+                        fillMode: Image.PreserveAspectFit
                     }
                     ColumnLayout {
                         spacing: 0
-                        Heading { text: "片语"; font.pixelSize: 25 }
-                        Hint { text: "视频转文字"; font.pixelSize: 11 }
+                        Heading { text: "片语"; font.pixelSize: 27; color: window.railText }
+                        Hint { text: "视频转文字"; font.pixelSize: 12; color: "#d2cdbf" }
                     }
                 }
                 Action {
                     Layout.fillWidth: true
-                    text: "文案提取"
+                    objectName: "navWork"
+                    onRail: true
+                    navGlyph: "import"
+                    text: "导入素材"
                     highlightedNav: window.page === "work"
-                    onClicked: window.page = "work"
+                    onClicked: window.navigate("work")
                 }
                 Action {
                     Layout.fillWidth: true
+                    objectName: "navQueue"
+                    onRail: true
+                    navGlyph: "queue"
+                    text: "任务队列" + (window.queueJobs.length ? "  " + window.queueJobs.length : "")
+                    highlightedNav: window.page === "queue" || (window.page === "result" && window.resultBack === "queue")
+                    onClicked: window.navigate("queue")
+                }
+                Action {
+                    Layout.fillWidth: true
+                    objectName: "navHistory"
+                    onRail: true
+                    navGlyph: "history"
                     text: "任务记录"
-                    highlightedNav: window.page === "history"
-                    onClicked: window.page = "history"
+                    highlightedNav: window.page === "history" || (window.page === "result" && window.resultBack === "history")
+                    onClicked: window.navigate("history")
                 }
                 Action {
                     Layout.fillWidth: true
+                    objectName: "navSettings"
+                    onRail: true
+                    navGlyph: "settings"
                     text: "设置"
                     highlightedNav: window.page === "settings"
-                    onClicked: window.page = "settings"
+                    onClicked: window.navigate("settings")
                 }
                 Item { Layout.fillHeight: true }
-                Hint { text: "在本机识别 · Windows"; font.pixelSize: 11
-                    Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
+                RowLayout {
+                    Layout.leftMargin: 12
+                    Layout.bottomMargin: 8
+                    spacing: 8
+                    Rectangle { width: 6; height: 6; radius: 3; color: appState.running ? "#f4b19d" : "#a9ba9e" }
+                    Hint { text: appState.running ? "正在本机处理" : "本机工作台"; font.pixelSize: 12; color: "#d2cdbf" }
+                }
             }
         }
 
         ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.margins: 24
-            spacing: 14
-            Label {
-                text: "工作台  /  " + ({work: "文案提取", history: "任务记录", settings: "设置"})[window.page]
-                color: window.muted
-                font.pixelSize: 13
-            }
-            Surface {
+            Layout.leftMargin: window.split ? 42 : 24
+            Layout.rightMargin: window.split ? 42 : 24
+            Layout.topMargin: window.split ? 36 : 22
+            Layout.bottomMargin: 24
+            spacing: window.split ? 22 : 13
+            ColumnLayout {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 91
-                color: window.mint
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 17
-                    spacing: 2
+                spacing: 5
+                RowLayout {
+                    Layout.fillWidth: true
                     Heading {
-                        text: ({work: "视频文案提取", history: "任务记录", settings: "应用设置"})[window.page]
-                        font.pixelSize: 29
+                        Layout.fillWidth: true
+                        text: ({work: appState.stage === 2 ? "确认素材" : "导入素材",
+                                queue: "任务队列", result: "提取结果",
+                                history: "任务记录", settings: "设置"})[window.page]
+                        font.pixelSize: 37
                     }
-                    Hint {
-                        text: ({work: "粘贴分享链接或选择本地文件夹，批量提取视频里的口播文案。",
-                                history: "查看本机保存的批次、文稿与待处理任务。",
-                                settings: "设置默认保存位置、导出格式和中文识别模型。"})[window.page]
-                    }
-                }
-            }
-
-            RowLayout {
-                visible: window.page === "work"
-                spacing: 8
-                Repeater {
-                    model: ["① 导入素材", "② 确认素材", "③ 提取与结果"]
-                    Status {
-                        required property int index
-                        required property string modelData
-                        label: modelData
-                        status: appState.stage === index + 1 ? "done" : ""
+                    Action {
+                        visible: window.page === "result"
+                        text: window.resultBack === "history" ? "返回任务记录" : "返回任务队列"
+                        quiet: true
+                        onClicked: window.page = window.resultBack
                     }
                 }
-                Item { Layout.fillWidth: true }
-                Action {
-                    visible: appState.stage === 3
-                    enabled: !appState.busy
-                    text: "新建批次"
-                    onClicked: {
-                        window.draft = ""
-                        input.text = ""
-                        window.batchFolder = appState.settings.root
-                        batchOutput.text = appState.settings.root
-                        batchModel.currentIndex = window.models.indexOf(appState.settings.model)
-                        batchFormat.currentIndex = window.formats.indexOf(appState.settings.format)
-                        appState.newBatch()
-                    }
+                Hint {
+                    Layout.fillWidth: true
+                    text: ({work: appState.stage === 2 ? "选好素材和导出方式，再把任务加入等待队列。"
+                                                   : "粘贴视频分享文字或本地路径，也可以从文件夹批量导入。",
+                            queue: "等待任务可以改名、调整导出选项或移除。准备好后，再开始提取。",
+                            result: "选择一条任务，查看处理状态或阅读已完成的文稿。",
+                            history: "打开批次，查看已生成的文稿或继续未完成的任务。",
+                            settings: "设置新任务的默认保存位置、转写模型和同时处理数。"})[window.page]
                 }
             }
 
             StackLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                currentIndex: ({work: 0, history: 1, settings: 2})[window.page]
+                currentIndex: ({work: 0, result: 0, history: 1, settings: 2, queue: 3})[window.page]
 
                 StackLayout {
-                    currentIndex: appState.stage - 1
+                    currentIndex: window.page === "result" ? 2 : appState.stage === 2 ? 1 : 0
 
-                    Surface {
+                    RowLayout {
+                      spacing: 24
+                      Surface {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        Layout.preferredWidth: 650
                         ColumnLayout {
                             anchors.fill: parent
-                            anchors.margins: 19
-                            spacing: 12
-                            Heading { text: "导入视频或音频" }
-                            Hint { text: "支持抖音、B 站分享链接和本地绝对路径。可以一次粘贴多条，建议每条占一行。" }
+                            anchors.margins: window.split ? 24 : 16
+                            spacing: 15
+                            Heading { text: "粘贴链接与路径" }
                             ScrollView {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
@@ -323,22 +565,37 @@ ApplicationWindow {
                                     text: window.draft
                                     onTextChanged: window.draft = text
                                     placeholderText: "粘贴分享文本、链接或本地文件路径\n例如 https://v.douyin.com/…\n或 D:\\视频素材\\采访.mp4"
+                                    placeholderTextColor: window.muted
+                                    color: window.ink
+                                    selectionColor: window.accent
+                                    selectedTextColor: window.ivory
+                                    Accessible.name: "视频链接与本地路径"
                                     wrapMode: TextEdit.Wrap
                                     selectByMouse: true
-                                    padding: 13
-                                    background: Rectangle { color: "#f6f9f5"; radius: 7; border.color: window.border }
+                                    padding: 16
+                                    background: Rectangle {
+                                        color: window.inset; radius: 10
+                                        border.width: input.activeFocus ? 2 : 0
+                                        border.color: window.accent
+                                    }
                                 }
                             }
                             RowLayout {
                                 Layout.fillWidth: true
-                                Action { text: "选择文件夹"; onClicked: sourceDialog.open() }
-                                Hint { text: "会扫描所选文件夹及子文件夹"; Layout.fillWidth: true }
+                                Action { text: "选择文件夹"; enabled: !window.parsing; onClicked: sourceDialog.open() }
+                                Hint { text: "包括子文件夹"; Layout.fillWidth: true }
                                 Action {
                                     objectName: "resolveMaterials"
-                                    text: appState.task === "resolve" ? "正在解析…" : "解析素材  →"
+                                    text: window.parsing ? "正在解析…" : "解析素材"
                                     primary: true
-                                    enabled: !appState.busy
-                                    onClicked: appState.resolve(input.text)
+                                    enabled: !window.parsing && (window.draft.trim() !== "" || appState.folders.length > 0)
+                                    onClicked: {
+                                        window.batchFolder = appState.settings.root
+                                        batchOutput.text = appState.settings.root
+                                        batchModel.currentIndex = window.models.indexOf(appState.settings.model)
+                                        batchFormat.currentIndex = window.formats.indexOf(appState.settings.format)
+                                        appState.resolve(input.text)
+                                    }
                                 }
                             }
                             Flow {
@@ -349,12 +606,64 @@ ApplicationWindow {
                                     Action {
                                         required property string modelData
                                         text: modelData + "  ×"
-                                        enabled: !appState.busy
+                                        enabled: !window.parsing
                                         onClicked: appState.removeFolder(modelData)
                                     }
                                 }
                             }
                         }
+                      }
+                      ColumnLayout {
+                        visible: window.split
+                        Layout.alignment: Qt.AlignTop
+                        Layout.preferredWidth: 233
+                        Layout.maximumWidth: 233
+                        spacing: 14
+                        Canvas {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 116
+                            onPaint: {
+                                const ctx = getContext("2d")
+                                ctx.reset()
+                                ctx.translate(8, 18)
+                                ctx.strokeStyle = "#c6b8a5"
+                                ctx.lineWidth = 1
+                                ctx.beginPath()
+                                ctx.moveTo(3, 48)
+                                ctx.lineTo(204, 48)
+                                ctx.stroke()
+                                ctx.strokeStyle = "#3f5d46"
+                                ctx.lineWidth = 3
+                                ctx.lineCap = "round"
+                                const peaks = [10, 22, 36, 62, 44, 24, 34, 15, 10]
+                                for (let i = 0; i < peaks.length; i++) {
+                                    ctx.beginPath()
+                                    ctx.moveTo(10 + i * 9, 48 - peaks[i] / 2)
+                                    ctx.lineTo(10 + i * 9, 48 + peaks[i] / 2)
+                                    ctx.stroke()
+                                }
+                                ctx.fillStyle = window.accent
+                                ctx.beginPath()
+                                ctx.arc(111, 48, 4, 0, Math.PI * 2)
+                                ctx.fill()
+                                ctx.strokeStyle = window.ink
+                                for (let i = 0; i < 4; i++) {
+                                    ctx.beginPath()
+                                    ctx.moveTo(135, 30 + i * 12)
+                                    ctx.lineTo(i === 3 ? 174 : 197, 30 + i * 12)
+                                    ctx.stroke()
+                                }
+                            }
+                        }
+                        Heading { text: "从声音到文稿"; font.pixelSize: 21; Layout.leftMargin: 8 }
+                        Hint {
+                            text: "优先使用可用的中文字幕。需要语音识别时，片语会在本机转写。"
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 8
+                        }
+                        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: window.border }
+                        Hint { text: "抖音、B 站、本地音视频\n支持导出 TXT 与 SRT"; Layout.leftMargin: 8 }
+                      }
                     }
 
                     Surface {
@@ -364,12 +673,12 @@ ApplicationWindow {
                             spacing: 9
                             RowLayout {
                                 Layout.fillWidth: true
-                                Heading { text: "确认素材" }
+                                Heading { text: "已解析素材" }
                                 Item { Layout.fillWidth: true }
                                 Action {
                                     objectName: "selectAllMaterials"
                                     text: "全选可用 / 清除全选"
-                                    enabled: !appState.busy
+                                    enabled: !window.parsing
                                     onClicked: appState.selectAll()
                                 }
                             }
@@ -383,7 +692,7 @@ ApplicationWindow {
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 32
-                                color: "#eaf2e9"
+                                color: window.inset
                                 radius: 5
                                 Label { anchors.left: parent.left; anchors.leftMargin: 13; anchors.verticalCenter: parent.verticalCenter
                                     text: "素材 / 状态"; color: window.ink; font.bold: true }
@@ -399,7 +708,7 @@ ApplicationWindow {
                                     required property var modelData
                                     width: ListView.view.width - 6
                                     height: modelData.error ? 61 : 48
-                                    color: modelData.checked ? "#f0f7ef" : "white"
+                                    color: modelData.checked ? window.mint : window.ivory
                                     Rectangle { height: 1; width: parent.width; anchors.bottom: parent.bottom; color: window.border }
                                     RowLayout {
                                         anchors.fill: parent
@@ -407,7 +716,7 @@ ApplicationWindow {
                                         anchors.rightMargin: 9
                                         CheckBox {
                                             Accessible.name: materialRow.modelData.title
-                                            enabled: !materialRow.modelData.error && !appState.busy
+                                            enabled: !materialRow.modelData.error && !window.parsing
                                             checked: materialRow.modelData.checked
                                             onClicked: appState.selectItem(materialRow.modelData.key, checked)
                                         }
@@ -429,9 +738,9 @@ ApplicationWindow {
                                 columnSpacing: 8
                                 rowSpacing: 3
                                 Label { text: "保存目录"; color: window.ink }
-                                TextField { id: batchOutput; objectName: "batchOutput"; Layout.fillWidth: true; text: window.batchFolder
+                                Field { id: batchOutput; objectName: "batchOutput"; Layout.fillWidth: true; text: window.batchFolder
                                     selectByMouse: true; onTextEdited: window.batchFolder = text }
-                                Action { text: "浏览"; onClicked: { window.chooseSettingFolder = false; outputDialog.open() } }
+                                Action { text: "浏览"; onClicked: { window.chooseEditingFolder = false; window.chooseSettingFolder = false; outputDialog.open() } }
                                 Hint { text: "中文 · 简体输出"; font.pixelSize: 12 }
                                 Label { text: "转写模型"; color: window.ink }
                                 RowLayout {
@@ -450,15 +759,21 @@ ApplicationWindow {
                             }
                             RowLayout {
                                 Layout.fillWidth: true
-                                Action { text: "← 返回导入"; enabled: !appState.busy; onClicked: appState.back() }
+                                Action { text: "返回导入"; quiet: true; enabled: !window.parsing; onClicked: appState.back() }
                                 Item { Layout.fillWidth: true }
+                                Hint { text: "已选 " + appState.selectedCount + " 条" }
                                 Action {
                                     objectName: "submitBatch"
                                     primary: true
-                                    enabled: appState.selectedCount > 0 && !appState.busy
-                                    text: appState.task === "batch" ? "正在准备…" : "提取 " + appState.selectedCount + " 条文案"
-                                    onClicked: appState.submit(batchOutput.text, window.models[batchModel.currentIndex],
-                                                               window.formats[batchFormat.currentIndex])
+                                    enabled: appState.selectedCount > 0 && !window.parsing
+                                    text: "加入等待队列"
+                                    onClicked: {
+                                        if (appState.enqueue(batchOutput.text, window.models[batchModel.currentIndex],
+                                                             window.formats[batchFormat.currentIndex]) !== false) {
+                                            window.draft = ""
+                                            window.page = "queue"
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -469,7 +784,7 @@ ApplicationWindow {
                         RowLayout {
                             Layout.fillWidth: true
                             Heading { text: "已完成 " + window.completed + " / " + appState.jobs.length }
-                            Meter { Layout.fillWidth: true; from: 0; to: Math.max(1, appState.jobs.length); value: window.completed }
+                            Meter { Layout.fillWidth: true; from: 0; to: Math.max(1, appState.jobs.length); value: window.completed; Accessible.name: "批次完成进度" }
                             Action {
                                 visible: appState.canCancel
                                 text: "取消本批"
@@ -491,7 +806,8 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 Layout.preferredWidth: window.split ? 540 : 800
-                                Layout.minimumHeight: window.split ? 0 : 115
+                                Layout.minimumHeight: window.split ? 0 : 102
+                                Layout.maximumHeight: window.split ? Infinity : 119
                                 ColumnLayout {
                                     anchors.fill: parent
                                     anchors.margins: 12
@@ -510,21 +826,28 @@ ApplicationWindow {
                                             onClicked: appState.openJob(modelData.id)
                                             background: Rectangle {
                                                 color: appState.detail.id === jobRow.modelData.id ? window.mint :
-                                                           jobRow.hovered ? "#f4f7f3" : "#ffffff"
+                                                           jobRow.hovered ? window.inset : window.ivory
                                                 radius: 6
+                                                border.width: jobRow.visualFocus ? 2 : 0
+                                                border.color: window.accent
                                             }
+                                            ToolTip.visible: hovered && modelData.title !== window.jobTitle(modelData)
+                                            ToolTip.delay: 650
+                                            ToolTip.text: modelData.title || ""
                                             contentItem: RowLayout {
                                                 spacing: 6
                                                 ColumnLayout {
                                                     Layout.fillWidth: true
                                                     spacing: 1
                                                     Label { Layout.fillWidth: true; elide: Text.ElideRight; color: window.ink; textFormat: Text.PlainText
-                                                        text: jobRow.modelData.title }
-                                                    Hint { Layout.fillWidth: true; font.pixelSize: 11
-                                                        text: jobRow.modelData.error || jobRow.modelData.source }
+                                                        text: window.jobTitle(jobRow.modelData) }
+                                                    Hint { Layout.fillWidth: true; font.pixelSize: 12; wrapMode: Text.NoWrap
+                                                        elide: Text.ElideRight; textFormat: Text.PlainText
+                                                        text: jobRow.modelData.error || window.progressLabel(jobRow.modelData) || jobRow.modelData.source }
                                                     Meter { Layout.fillWidth: true
-                                                        visible: typeof jobRow.modelData.progress === "number" && jobRow.modelData.status !== "done"
-                                                        value: jobRow.modelData.progress || 0 }
+                                                        visible: window.measured(jobRow.modelData)
+                                                        value: visible ? jobRow.modelData.progress : 0
+                                                        Accessible.name: jobRow.modelData.stateLabel + "进度" }
                                                 }
                                                 Status { label: jobRow.modelData.stateLabel; status: jobRow.modelData.status }
                                             }
@@ -536,7 +859,7 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 Layout.preferredWidth: window.split ? 360 : 800
-                                Layout.minimumHeight: window.split ? 0 : 172
+                                Layout.minimumHeight: window.split ? 0 : 224
                                 ColumnLayout {
                                     anchors.fill: parent
                                     anchors.margins: 12
@@ -544,11 +867,23 @@ ApplicationWindow {
                                     Heading { text: "文案预览" }
                                     Label {
                                         Layout.fillWidth: true
-                                        text: appState.detail.title || "选择一条任务"
+                                        text: window.jobTitle(appState.detail) || "选择一条任务"
                                         color: window.ink
                                         textFormat: Text.PlainText
                                         elide: Text.ElideRight
                                         font.bold: true
+                                    }
+                                    Hint {
+                                        Layout.fillWidth: true
+                                        visible: Boolean(appState.detail.title) && appState.detail.title !== window.jobTitle(appState.detail)
+                                        text: "原始标题：" + (appState.detail.title || "")
+                                        textFormat: Text.PlainText
+                                        maximumLineCount: 3
+                                        elide: Text.ElideRight
+                                        ToolTip.visible: originalHover.hovered
+                                        ToolTip.delay: 650
+                                        ToolTip.text: appState.detail.title || ""
+                                        HoverHandler { id: originalHover }
                                     }
                                     Hint {
                                         Layout.fillWidth: true
@@ -563,6 +898,7 @@ ApplicationWindow {
                                     ScrollView {
                                         Layout.fillWidth: true
                                         Layout.fillHeight: true
+                                        Layout.minimumHeight: 70
                                         TextArea {
                                             readOnly: true
                                             selectByMouse: true
@@ -571,13 +907,14 @@ ApplicationWindow {
                                             text: window.timeline && appState.detail.timeline ?
                                                       appState.detail.timeline.map(function(row) { return row.stamp + "   " + row.text }).join("\n") :
                                                       appState.detail.text || ""
-                                            background: Rectangle { radius: 6; color: "#f2f7f0" }
+                                            background: Rectangle { radius: 6; color: window.inset }
                                         }
                                     }
                                     Flow {
                                         Layout.fillWidth: true
                                         spacing: 6
                                         Action {
+                                            objectName: "copyResult"
                                             text: "复制文案"; visible: Boolean(appState.detail.hasResult)
                                             onClicked: appState.copy(appState.detail.text)
                                         }
@@ -623,11 +960,12 @@ ApplicationWindow {
                             delegate: ItemDelegate {
                                 id: record
                                 required property var modelData
+                                objectName: "historyBatch_" + modelData.id
                                 width: ListView.view.width - 6
                                 height: 54
                                 text: "批次 " + modelData.id + "    " + modelData.created.slice(0, 16).replace("T", " ") +
                                       "    完成 " + modelData.done + " / " + modelData.total + "    待处理或失败 " + modelData.failed
-                                onClicked: { appState.openBatch(record.modelData.id); window.page = "work" }
+                                onClicked: window.openResult(record.modelData.id, 0, "history")
                             }
                         }
                     }
@@ -646,14 +984,14 @@ ApplicationWindow {
                             Hint { text: "每个视频按标题建立文件夹。已生成的文稿可从任务记录补存。"; Layout.fillWidth: true }
                             RowLayout {
                                 Layout.fillWidth: true
-                                TextField {
+                                Field {
                                     id: defaultOutput
                                     Layout.fillWidth: true
                                     text: window.settingsFolder
                                     selectByMouse: true
                                     onTextEdited: window.settingsFolder = text
                                 }
-                                Action { text: "选择目录"; onClicked: { window.chooseSettingFolder = true; outputDialog.open() } }
+                                Action { text: "选择目录"; onClicked: { window.chooseEditingFolder = false; window.chooseSettingFolder = true; outputDialog.open() } }
                             }
                             RowLayout {
                                 Label { text: "默认导出格式" }
@@ -668,7 +1006,7 @@ ApplicationWindow {
                                     required property string modelData
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 82
-                                    color: "#f7faf6"
+                                    color: window.inset
                                     ColumnLayout {
                                         anchors.fill: parent
                                         anchors.margins: 10
@@ -690,15 +1028,29 @@ ApplicationWindow {
                             }
                             RowLayout {
                                 Layout.fillWidth: true
+                                Label { text: "同时处理数" }
+                                ComboBox {
+                                    id: parallelism
+                                    objectName: "parallelism"
+                                    model: ["1 条（默认）", "2 条", "3 条"]
+                                    currentIndex: (appState.settings.parallelism || 1) - 1
+                                    Layout.preferredWidth: 166
+                                    Accessible.name: "同时处理数"
+                                }
+                                Hint { text: "同时处理越多，CPU 和内存占用越高。"; Layout.fillWidth: true }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
                                 Label { text: "默认模型" }
                                 ComboBox { id: defaultModel; model: window.modelLabels; Layout.preferredWidth: 166
                                     currentIndex: window.models.indexOf(appState.settings.model) }
                                 Item { Layout.fillWidth: true }
                                 Action {
                                     text: "保存设置"; primary: true
+                                    objectName: "saveSettings"
                                     onClicked: {
                                         appState.saveSettings(defaultOutput.text, window.models[defaultModel.currentIndex],
-                                                              window.formats[defaultFormat.currentIndex])
+                                                              window.formats[defaultFormat.currentIndex], parallelism.currentIndex + 1)
                                         if (appState.stage === 1) {
                                             batchOutput.text = appState.settings.root
                                             batchModel.currentIndex = window.models.indexOf(appState.settings.model)
@@ -710,12 +1062,168 @@ ApplicationWindow {
                         }
                     }
                 }
+                ColumnLayout {
+                    spacing: 12
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Hint {
+                            Layout.fillWidth: true
+                            text: "已启动 " + appState.activeJobs.length + " · 等待 " + appState.waitingJobs.length
+                                  + " · 同时处理上限 " + (appState.settings.parallelism || 1)
+                        }
+                        Action {
+                            visible: appState.history.length > 0
+                            text: "查看任务记录"; quiet: true; onClicked: window.navigate("history")
+                        }
+                        Action {
+                            objectName: "startAllWaiting"
+                            text: "开始全部等待任务"
+                            primary: true
+                            enabled: appState.waitingJobs.length > 0
+                            onClicked: { window.message = ""; appState.startWaiting(0) }
+                        }
+                    }
+                    Surface {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        ColumnLayout {
+                            anchors.centerIn: parent
+                            visible: !window.queueJobs.length
+                            spacing: 10
+                            Heading { text: "队列为空"; font.pixelSize: 23 }
+                            Hint { text: "导入并确认素材后，任务会在这里等待开始。" }
+                            Action {
+                                text: appState.history.length ? "查看任务记录" : "导入素材"
+                                onClicked: window.navigate(appState.history.length ? "history" : "work")
+                            }
+                        }
+                        ListView {
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            clip: true
+                            model: queueModel
+                            ScrollBar.vertical: ScrollBar {}
+                            delegate: ColumnLayout {
+                                id: queueRow
+                                required property int index
+                                required property int jobId
+                                readonly property var modelData: window.queueIndex[jobId] || ({})
+                                readonly property bool waiting: modelData.status === "waiting"
+                                readonly property bool groupStart: index === 0 || index === appState.activeJobs.length
+                                width: ListView.view.width - 7
+                                spacing: 0
+                                Heading {
+                                    visible: queueRow.groupStart
+                                    Layout.leftMargin: 9
+                                    Layout.topMargin: 5
+                                    Layout.bottomMargin: 5
+                                    text: queueRow.waiting ? "等待启动" : "已启动"
+                                    font.pixelSize: 16
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Layout.minimumHeight: 66
+                                    Layout.leftMargin: 9
+                                    Layout.rightMargin: 5
+                                    spacing: window.split ? 14 : 8
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 2
+                                        Label {
+                                            Layout.fillWidth: true
+                                            text: window.jobTitle(queueRow.modelData)
+                                            textFormat: Text.PlainText
+                                            color: window.ink
+                                            font.weight: Font.DemiBold
+                                            elide: Text.ElideRight
+                                            ToolTip.visible: titleHover.hovered
+                                            ToolTip.delay: 550
+                                            ToolTip.text: queueRow.modelData.title || ""
+                                            HoverHandler { id: titleHover }
+                                        }
+                                        Hint {
+                                            Layout.fillWidth: true
+                                            text: queueRow.modelData.source + " · " + window.duration(queueRow.modelData.duration)
+                                            wrapMode: Text.NoWrap
+                                            elide: Text.ElideRight
+                                            font.pixelSize: 12
+                                        }
+                                    }
+                                    ColumnLayout {
+                                        Layout.preferredWidth: 174
+                                        spacing: 4
+                                        visible: !queueRow.waiting
+                                        Hint {
+                                            objectName: "activeStatus_" + queueRow.jobId
+                                            Layout.fillWidth: true
+                                            wrapMode: Text.NoWrap
+                                            text: (queueRow.modelData.status === "queued" ? "等待可用名额" : queueRow.modelData.stateLabel || "处理中") +
+                                                  (window.measured(queueRow.modelData) ? " · " + window.progressLabel(queueRow.modelData) : "")
+                                            elide: Text.ElideRight
+                                            font.pixelSize: 12
+                                            ToolTip.visible: statusHover.hovered
+                                            ToolTip.text: text
+                                            HoverHandler { id: statusHover }
+                                        }
+                                        Meter {
+                                            Layout.fillWidth: true
+                                            visible: window.measured(queueRow.modelData)
+                                            value: visible ? queueRow.modelData.progress : 0
+                                            Accessible.name: (queueRow.modelData.stateLabel || "处理") + "进度"
+                                        }
+                                    }
+                                    Action {
+                                        visible: queueRow.waiting
+                                        objectName: "editWaiting_" + queueRow.modelData.id
+                                        text: "编辑"
+                                        quiet: true
+                                        onClicked: {
+                                            window.editing = queueRow.modelData
+                                            aliasField.text = window.editing.alias || ""
+                                            editOutput.text = window.editing.root
+                                            editModel.currentIndex = window.models.indexOf(window.editing.model)
+                                            editFormat.currentIndex = window.formats.indexOf(window.editing.format)
+                                            editDialog.open()
+                                        }
+                                    }
+                                    Action {
+                                        visible: queueRow.waiting
+                                        objectName: "removeWaiting_" + queueRow.modelData.id
+                                        text: "移除"
+                                        quiet: true
+                                        onClicked: { window.removing = queueRow.modelData; removeDialog.open() }
+                                    }
+                                    Action {
+                                        visible: queueRow.waiting
+                                        objectName: "startWaiting_" + queueRow.modelData.id
+                                        text: "开始"
+                                        onClicked: { window.message = ""; appState.startWaiting(queueRow.modelData.id) }
+                                    }
+                                    Action {
+                                        visible: !queueRow.waiting
+                                        text: "查看"
+                                        quiet: true
+                                        onClicked: window.openResult(queueRow.modelData.batch, queueRow.modelData.id, "queue")
+                                    }
+                                    Action {
+                                        visible: !queueRow.waiting
+                                        text: "取消"
+                                        quiet: true
+                                        enabled: !queueRow.modelData.stopping
+                                        onClicked: appState.cancelJob(queueRow.modelData.id)
+                                    }
+                                }
+                                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: window.border }
+                            }
+                        }
+                    }
+                }
             }
             Surface {
                 Layout.fillWidth: true
                 Layout.preferredHeight: toast.implicitHeight + 13
                 visible: window.message !== ""
-                color: "#f2f7ef"
+                color: window.mint
                 Hint { id: toast; anchors.left: parent.left; anchors.right: parent.right
                     anchors.margins: 7; anchors.verticalCenter: parent.verticalCenter; text: window.message }
             }
