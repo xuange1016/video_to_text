@@ -20,6 +20,7 @@ def test_parallel_slots_allow_import_and_waiting_edits(tmp_path, monkeypatch):
     controller = Controller(tmp_path)
     root = str(tmp_path / "导出")
     controller.saveSettings(root, "small", "both", 2)
+    wait_for(lambda: controller.settings["parallelism"] == 2)
     source_paths = [tmp_path / f"目录 {number}" / "同名口播.mp4" for number in range(4)]
     for path in source_paths:
         path.parent.mkdir()

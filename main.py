@@ -6,6 +6,7 @@ import logging
 import math
 import os
 import shutil
+import sqlite3
 import sys
 import threading
 import time
@@ -16,7 +17,7 @@ from PySide6.QtCore import Property, QLockFile, QObject, QStandardPaths, QTimer,
 from PySide6.QtGui import QDesktopServices, QFontDatabase, QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
 
-from engine import MAX_PARALLEL, MODEL_SIZES, model_path, result_text, timestamp, Transcriber
+from engine import MAX_PARALLEL, MODEL_SIZES, check_output, model_path, output_path, result_text, timestamp, Transcriber
 from platforms import Cancelled, Media, MESSAGES, Platforms
 from storage import Store, compact_title, run_batch
 
@@ -42,9 +43,15 @@ class Controller(QObject):
     activeChanged = Signal()
     historyChanged = Signal()
     batchChanged = Signal()
+    folderCheckChanged = Signal()
+    settingsSaved = Signal()
+    smallDownloadChanged = Signal()
     feedback = Signal(str)
     _finished = Signal(str, object, str)
     _jobFinished = Signal(int, str)
+    _folderFinished = Signal(str, object, str)
+    _smallProgress = Signal(object)
+    _smallFinished = Signal(str)
 
     def __init__(self, data):
         super().__init__()
@@ -58,7 +65,11 @@ class Controller(QObject):
         self.store = Store(data / "tasks.sqlite3")
         documents = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
         self._settings = self.store.settings({"root": str(Path(documents) / "片语导出"),
-                                              "model": "medium", "format": "both", "parallelism": 1})
+                                              "model": "medium", "format": "both", "parallelism": 1,
+                                              "reducedMotion": False})
+        self._folder_check = {"path": "", "status": "idle", "message": ""}
+        self._small_download = {"status": "idle", "progress": None, "message": ""}
+        self._small_stop = threading.Event()
         self._inputs = []
         self._checked = set()
         self._duplicates = 0
@@ -93,6 +104,9 @@ class Controller(QObject):
         self.transcriber = Transcriber(self.models)
         self._finished.connect(self.finish)
         self._jobFinished.connect(self.job_finished)
+        self._folderFinished.connect(self.folder_finished)
+        self._smallProgress.connect(self.small_progress)
+        self._smallFinished.connect(self.small_finished)
 
     @Property("QVariantMap", notify=stateChanged)
     def settings(self):
@@ -106,6 +120,14 @@ class Controller(QObject):
     def modelsInfo(self):
         return {name: {"ready": bool(model_path(name, self.models)), "size": size}
                 for name, size in MODEL_SIZES.items()}
+
+    @Property("QVariantMap", notify=folderCheckChanged)
+    def folderCheck(self):
+        return self._folder_check
+
+    @Property("QVariantMap", notify=smallDownloadChanged)
+    def smallDownload(self):
+        return self._small_download
 
     @Property("QVariantList", notify=stateChanged)
     def folders(self):
@@ -136,7 +158,7 @@ class Controller(QObject):
 
     @Property(bool, notify=stateChanged)
     def busy(self):
-        return bool(self._task) or self.running
+        return bool(self._task) or self.running or self._small_download["status"] in {"downloading", "stopping"}
 
     @Property(bool, notify=stateChanged)
     def running(self):
@@ -222,27 +244,144 @@ class Controller(QObject):
     def options(root, model, formats):
         if model not in MODEL_SIZES or formats not in {"txt", "srt", "both"} or not root.strip():
             raise ValueError("请填写保存目录，并选择模型和格式。")
-        if not Path(root.strip()).is_absolute():
-            raise ValueError("请填写保存目录的绝对路径。")
-        return {"root": root.strip(), "model": model, "format": formats}
+        return {"root": str(output_path(root)), "model": model, "format": formats}
 
     @Slot(str, str, str)
     @Slot(str, str, str, int)
     def saveSettings(self, root, model, formats, parallelism=None):
+        if self._folder_check["status"] == "checking":
+            return
         try:
             options = self.options(root, model, formats)
             parallelism = self._settings["parallelism"] if parallelism is None else parallelism
             if not 1 <= parallelism <= MAX_PARALLEL:
                 raise ValueError(f"同时处理数应为 1 至 {MAX_PARALLEL}。")
             options["parallelism"] = parallelism
-            self.store.save_settings(options)
-        except (ValueError, OSError) as exc:
-            self.feedback.emit(str(exc))
+        except ValueError as exc:
+            self.folder_finished(root.strip(), None, str(exc))
             return
-        self._settings = options
-        self.pump()
+        self.begin_folder_check(root, options)
+
+    @Slot(str)
+    def checkFolder(self, root):
+        self.begin_folder_check(root, None)
+
+    def begin_folder_check(self, root, options):
+        if self._exit or self._folder_check["status"] == "checking":
+            return
+        root = root.strip()
+        self._folder_check = {"path": root, "status": "checking", "message": "正在测试目录写入…"}
+        self.folderCheckChanged.emit()
+
+        def validate():
+            error = ""
+            try:
+                check_output(root, create=options is not None)
+            except ValueError as exc:
+                error = str(exc)
+            except FileNotFoundError:
+                error = "目录不存在或当前不可用。请选择已有目录，或保存以创建目录。"
+            except (NotADirectoryError, FileExistsError):
+                error = "该路径指向文件。请选择文件夹。"
+            except PermissionError:
+                error = "该目录不可写。请选择有写入权限的文件夹。"
+            except OSError:
+                error = "无法写入该目录。请检查路径、磁盘空间或网络连接。"
+            self._folderFinished.emit(root, options, error)
+
+        threading.Thread(target=validate, daemon=True, name="pianyu-folder").start()
+
+    @Slot(str, object, str)
+    def folder_finished(self, root, options, error):
+        if self._exit:
+            return
+        if not error and options:
+            options = self._settings | options
+            try:
+                self.store.save_settings(options)
+            except sqlite3.Error:
+                logging.exception("Could not save settings")
+                error = "设置写入失败。请重试。"
+        self._folder_check = {"path": options["root"] if options and not error else root,
+                              "status": "invalid" if error else "valid",
+                              "message": error or "目录可写，校验通过。"}
+        self.folderCheckChanged.emit()
+        if not error and options:
+            self._settings = options
+            self.pump()
+            self.stateChanged.emit()
+            self.settingsSaved.emit()
+            self.feedback.emit("设置已保存。")
+
+    @Slot(bool)
+    def setReducedMotion(self, reduced):
+        settings = self._settings | {"reducedMotion": reduced}
+        try:
+            self.store.save_settings(settings)
+        except sqlite3.Error:
+            self.feedback.emit("动效设置未保存。请重试。")
+        else:
+            self._settings = settings
         self.stateChanged.emit()
-        self.feedback.emit("设置已保存。")
+
+    @Slot()
+    def downloadSmall(self):
+        if self._exit or self._small_download["status"] in {"downloading", "stopping"}:
+            return
+        self._small_stop.clear()
+        self._small_download = {"status": "downloading", "progress": None, "message": "正在准备下载…"}
+        self.smallDownloadChanged.emit()
+        self.stateChanged.emit()
+
+        def download():
+            progress_before = -1
+
+            def report(_, progress):
+                nonlocal progress_before
+                percent = int(progress * 100) if progress is not None else None
+                if percent != progress_before:
+                    progress_before = percent
+                    self._smallProgress.emit(percent)
+
+            result = "ready"
+            try:
+                self.transcriber.ensure_model("small", report, self._small_stop.is_set)
+            except Cancelled:
+                result = "cancelled"
+            except Exception:
+                logging.exception("Could not predownload the small model")
+                result = "failed"
+            self._smallFinished.emit(result)
+
+        threading.Thread(target=download, daemon=True, name="pianyu-small").start()
+
+    @Slot()
+    def cancelSmallDownload(self):
+        if self._small_download["status"] == "downloading":
+            self._small_stop.set()
+            self._small_download = {**self._small_download, "status": "stopping", "message": "正在停止下载…"}
+            self.smallDownloadChanged.emit()
+
+    @Slot(object)
+    def small_progress(self, percent):
+        if self._small_download["status"] != "downloading":
+            return
+        self._small_download = {"status": "downloading", "progress": percent,
+                                "message": "正在连接下载源…" if percent is None else "正在下载模型权重"}
+        self.smallDownloadChanged.emit()
+
+    @Slot(str)
+    def small_finished(self, result):
+        if model_path("small", self.models):
+            result = "ready"
+        messages = {"ready": "small 已就绪，可离线转写。", "cancelled": "下载已停止，可重新点击下载。",
+                    "failed": "small 下载失败。请检查网络和磁盘空间后重试。"}
+        self._small_download = {"status": result, "progress": 100 if result == "ready" else None,
+                                "message": messages[result]}
+        self.smallDownloadChanged.emit()
+        self.stateChanged.emit()
+        self.feedback.emit(messages[result])
+        self.maybe_quit()
 
     @Slot(str, str, str)
     def submit(self, root, model, formats):
@@ -364,6 +503,7 @@ class Controller(QObject):
     def cancelAndQuit(self):
         self._exit = True
         self._parse_stop.set()
+        self.cancelSmallDownload()
         for job in [*self._pending, *self._inflight]:
             self.stop_job(job)
         self.maybe_quit()
@@ -375,8 +515,13 @@ class Controller(QObject):
 
     @Slot(str)
     def openFolder(self, path):
-        if not Path(path).is_dir() or not QDesktopServices.openUrl(QUrl.fromLocalFile(path)):
-            self.feedback.emit("无法打开该目录。")
+        try:
+            folder = output_path(path)
+            if folder.is_dir() and QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder))):
+                return
+        except (ValueError, OSError):
+            pass
+        self.feedback.emit("无法打开目录。请先确认它存在且可访问。")
 
     def start(self, kind, work):
         if self._task or self._exit:

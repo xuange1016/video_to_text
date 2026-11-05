@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import QtQuick.Dialogs
 
@@ -26,12 +27,15 @@ ApplicationWindow {
     readonly property color ink: "#292d26"
     readonly property color muted: "#656559"
     readonly property color accent: "#a04434"
-    readonly property color mint: "#f1e0d7"
+    readonly property color blush: "#f1e0d7"
     readonly property color border: "#e3dccf"
     readonly property color inset: "#efeae0"
     readonly property color ivory: "#fffcf7"
-    readonly property color rail: "#252f29"
+    readonly property color rail: "#26382e"
     readonly property color railText: "#f5eee0"
+    readonly property color leaf: "#315d44"
+    readonly property color leafWash: "#e6eddb"
+    readonly property bool motion: !appState.settings.reducedMotion
     readonly property var models: ["small", "medium"]
     readonly property var formats: ["both", "txt", "srt"]
     readonly property var modelLabels: ["快速 · small", "均衡 · medium"]
@@ -51,6 +55,7 @@ ApplicationWindow {
     property var removing: ({})
     property var queueIndex: ({})
     readonly property bool parsing: appState.task === "resolve"
+    readonly property bool smallBusy: ["downloading", "stopping"].includes(appState.smallDownload.status)
     readonly property var queueJobs: appState.activeJobs.concat(appState.waitingJobs)
     readonly property int completed: appState.jobs.filter(function(job) { return job.status === "done" }).length
     readonly property int retryable: appState.jobs.filter(function(job) {
@@ -144,6 +149,7 @@ ApplicationWindow {
         leftPadding: onRail ? 43 : 15
         rightPadding: 15
         hoverEnabled: true
+        onPressed: if (window.motion) touchWave.play(pressX - 4, pressY - 4)
         contentItem: Text {
             id: label
             text: control.text
@@ -158,9 +164,17 @@ ApplicationWindow {
             radius: 8
             color: control.onRail ? (control.highlightedNav ? "#435047" : control.hovered ? "#343f36" : "transparent")
                    : !control.enabled ? "#e8e1d5" : control.primary ? (control.down ? "#7c3126" : control.hovered ? "#8c372a" : window.accent)
-                   : control.highlightedNav ? window.mint : control.hovered ? "#e8e1d6" : control.quiet ? "transparent" : window.inset
+                   : control.highlightedNav ? window.blush : control.down ? "#d9e3ce" : control.hovered ? window.leafWash
+                   : control.quiet ? "transparent" : window.inset
             border.width: control.visualFocus ? 2 : 0
-            border.color: control.onRail ? "#f4c0ae" : window.accent
+            border.color: control.onRail ? "#efb99d" : window.leaf
+            Behavior on color { enabled: window.motion && !control.primary; ColorAnimation { duration: 125; easing.type: Easing.OutCubic } }
+            Ripple {
+                id: touchWave
+                anchors.fill: parent
+                anchors.margins: 4
+                tint: control.primary || control.onRail ? "#fff3d6" : window.leaf
+            }
         }
         Canvas {
             visible: control.navGlyph !== ""
@@ -202,6 +216,129 @@ ApplicationWindow {
         }
     }
 
+    component Ripple: Item {
+        id: pulse
+        property color tint: window.leaf
+        clip: true
+        function play(x, y) {
+            ring.x = Math.max(0, Math.min(width, x)) - ring.width / 2
+            ring.y = Math.max(0, Math.min(height, y)) - ring.height / 2
+            spread.restart()
+        }
+        Rectangle {
+            id: ring
+            width: Math.max(1, pulse.width, pulse.height)
+            height: width
+            radius: width / 2
+            color: "transparent"
+            border.width: 2
+            border.color: pulse.tint
+            opacity: 0
+        }
+        ParallelAnimation {
+            id: spread
+            NumberAnimation { target: ring; property: "scale"; from: 0.06; to: 1.75; duration: 340; easing.type: Easing.OutCubic }
+            NumberAnimation { target: ring; property: "opacity"; from: 0.38; to: 0; duration: 340; easing.type: Easing.OutQuad }
+        }
+    }
+
+    component Choice: Basic.ComboBox {
+        id: choice
+        implicitHeight: 40
+        implicitWidth: 162
+        leftPadding: 12
+        rightPadding: 34
+        hoverEnabled: true
+        contentItem: Text {
+            text: choice.displayText
+            textFormat: Text.PlainText
+            color: choice.enabled ? window.ink : window.muted
+            font: choice.font
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+        }
+        indicator: Canvas {
+            x: choice.width - 23
+            y: (choice.height - height) / 2
+            width: 13
+            height: 13
+            rotation: choice.popup.visible ? 180 : 0
+            Behavior on rotation { enabled: window.motion; NumberAnimation { duration: 145; easing.type: Easing.OutCubic } }
+            onPaint: {
+                const c = getContext("2d")
+                c.reset()
+                c.strokeStyle = window.leaf
+                c.lineWidth = 1.6
+                c.lineJoin = "round"
+                c.lineCap = "round"
+                c.beginPath()
+                c.moveTo(2.5, 5); c.lineTo(6.5, 9); c.lineTo(10.5, 5)
+                c.stroke()
+            }
+        }
+        background: Rectangle {
+            radius: 9
+            color: !choice.enabled ? window.inset : choice.hovered || choice.popup.visible ? window.leafWash : window.color
+            border.width: choice.visualFocus ? 2 : 1
+            border.color: choice.visualFocus || choice.popup.visible ? window.leaf : "#d9d4c6"
+            Behavior on color { enabled: window.motion; ColorAnimation { duration: 135 } }
+        }
+        delegate: Basic.ItemDelegate {
+            id: option
+            required property int index
+            required property string modelData
+            objectName: choice.objectName + "Option" + index
+            width: ListView.view ? ListView.view.width : choice.width
+            height: 38
+            leftPadding: 12
+            rightPadding: 24
+            hoverEnabled: true
+            highlighted: choice.highlightedIndex === index
+            Accessible.name: modelData
+            contentItem: Text {
+                text: option.modelData
+                textFormat: Text.PlainText
+                color: window.ink
+                font: choice.font
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
+            }
+            background: Rectangle {
+                radius: 7
+                color: option.hovered || option.highlighted ? "#dce8d1" :
+                       option.index === choice.currentIndex ? "#edf2e5" : "transparent"
+                Behavior on color { enabled: window.motion; ColorAnimation { duration: 110 } }
+                Rectangle {
+                    visible: option.index === choice.currentIndex
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.right: parent.right
+                    anchors.rightMargin: 12
+                    width: 7
+                    height: 7
+                    radius: 4
+                    color: window.leaf
+                }
+            }
+        }
+        popup: Popup {
+            y: choice.height + 5
+            width: Math.max(choice.width, 165)
+            height: Math.min(choice.count * 38, 228) + topPadding + bottomPadding
+            padding: 5
+            margins: 8
+            contentItem: ListView {
+                clip: true
+                model: choice.popup.visible ? choice.delegateModel : null
+                currentIndex: choice.highlightedIndex
+                ScrollBar.vertical: ScrollBar {}
+            }
+            background: Rectangle { radius: 12; color: window.ivory; border.color: "#cad6bf" }
+            enter: Transition {
+                NumberAnimation { property: "scale"; from: 0.98; to: 1; duration: window.motion ? 130 : 0; easing.type: Easing.OutCubic }
+            }
+        }
+    }
+
     component Field: TextField {
         id: field
         color: window.ink
@@ -209,12 +346,33 @@ ApplicationWindow {
         selectedTextColor: window.ivory
         placeholderTextColor: window.muted
         selectByMouse: true
+        hoverEnabled: true
         padding: 10
         background: Rectangle {
             radius: 7
-            color: window.inset
+            color: field.activeFocus ? window.ivory : field.hovered ? "#e9eddf" : window.inset
             border.width: field.activeFocus ? 2 : 0
-            border.color: window.accent
+            border.color: window.leaf
+            Behavior on color { enabled: window.motion; ColorAnimation { duration: 135 } }
+        }
+    }
+
+    component PathField: Field {
+        id: pathField
+        font.underline: pathLink.hovered
+        Accessible.description: "按住 Ctrl 单击，或按 Ctrl 和回车，在资源管理器打开目录。"
+        HoverHandler { id: pathLink; acceptedModifiers: Qt.ControlModifier; cursorShape: Qt.PointingHandCursor }
+        TapHandler {
+            acceptedButtons: Qt.LeftButton
+            acceptedModifiers: Qt.ControlModifier
+            gesturePolicy: TapHandler.DragThreshold
+            onTapped: appState.openFolder(pathField.text)
+        }
+        Keys.onPressed: function(event) {
+            if ((event.modifiers & Qt.ControlModifier) && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
+                appState.openFolder(pathField.text)
+                event.accepted = true
+            }
         }
     }
 
@@ -222,11 +380,13 @@ ApplicationWindow {
         color: window.ink
         font.pixelSize: 19
         font.weight: Font.DemiBold
+        Accessible.name: text
     }
 
     component Hint: Label {
         color: window.muted
         wrapMode: Text.Wrap
+        Accessible.name: text
     }
 
     component Surface: Rectangle {
@@ -240,12 +400,13 @@ ApplicationWindow {
         implicitWidth: statusLabel.implicitWidth + 20
         implicitHeight: 27
         radius: 13
-        color: ["failed", "save_pending"].includes(status) ? window.mint :
+        color: ["failed", "save_pending"].includes(status) ? window.blush :
                   status === "done" ? "#e6ebe0" : window.inset
         Label {
             id: statusLabel
             anchors.centerIn: parent
             text: parent.label
+            Accessible.name: text
             color: parent.status === "failed" ? window.accent :
                        parent.status === "done" ? "#3f5d46" : window.muted
             font.pixelSize: 12
@@ -255,15 +416,44 @@ ApplicationWindow {
 
     component Meter: ProgressBar {
         id: meter
+        property bool flowing: false
         implicitHeight: 5
         padding: 0
         background: Rectangle { color: "#e9dfd2"; radius: 3 }
         contentItem: Item {
             Rectangle {
+                id: meterFill
                 height: parent.height
-                width: meter.visualPosition * parent.width
+                width: meter.indeterminate ? 0 : meter.visualPosition * parent.width
                 radius: 3
-                color: window.accent
+                color: window.leaf
+                clip: true
+                Behavior on width { enabled: window.motion; NumberAnimation { duration: 165; easing.type: Easing.OutCubic } }
+            }
+            Item {
+                anchors.fill: meter.indeterminate ? parent : meterFill
+                clip: true
+                visible: (meter.indeterminate || (window.motion && meter.flowing)) && meter.visible
+                Rectangle {
+                    id: current
+                    width: Math.min(parent.width * 0.28, 68)
+                    height: parent.height
+                    radius: 3
+                    x: meter.indeterminate ? (parent.width - width) / 2 : -width
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0; color: "transparent" }
+                        GradientStop { position: 0.5; color: meter.indeterminate ? window.leaf : "#b5cba0" }
+                        GradientStop { position: 1; color: "transparent" }
+                    }
+                    NumberAnimation on x {
+                        running: meter.visible && window.motion && (meter.flowing || meter.indeterminate)
+                        from: -current.width
+                        to: current.parent.width
+                        duration: 1220
+                        loops: Animation.Infinite
+                    }
+                }
             }
         }
     }
@@ -282,10 +472,8 @@ ApplicationWindow {
                 editOutput.text = folder
             } else if (window.chooseSettingFolder) {
                 window.settingsFolder = folder
-                defaultOutput.text = folder
             } else {
                 window.batchFolder = folder
-                batchOutput.text = folder
             }
         }
     }
@@ -336,7 +524,7 @@ ApplicationWindow {
             Label { text: "保存目录"; Layout.topMargin: 6 }
             RowLayout {
                 Layout.fillWidth: true
-                Field { id: editOutput; Layout.fillWidth: true; Accessible.name: "任务保存目录" }
+                PathField { id: editOutput; Layout.fillWidth: true; Accessible.name: "任务保存目录" }
                 Action { text: "浏览"; onClicked: { window.chooseEditingFolder = true; outputDialog.open() } }
             }
             Hint { text: window.editError; visible: text !== ""; color: window.accent; Layout.fillWidth: true }
@@ -345,12 +533,12 @@ ApplicationWindow {
                 ColumnLayout {
                     Layout.fillWidth: true
                     Label { text: "转写模型" }
-                    ComboBox { id: editModel; Layout.fillWidth: true; model: window.modelLabels; Accessible.name: "任务模型" }
+                    Choice { id: editModel; Layout.fillWidth: true; model: window.modelLabels; Accessible.name: "任务模型" }
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
                     Label { text: "导出格式" }
-                    ComboBox { id: editFormat; Layout.fillWidth: true; model: window.formatLabels; Accessible.name: "任务导出格式" }
+                    Choice { id: editFormat; Layout.fillWidth: true; model: window.formatLabels; Accessible.name: "任务导出格式" }
                 }
             }
             RowLayout {
@@ -402,8 +590,12 @@ ApplicationWindow {
         title: "结束当前处理？"
         anchors.centerIn: parent
         modal: true
+        implicitWidth: 410
         standardButtons: Dialog.Ok | Dialog.Cancel
-        Label { text: "已完成的结果会保留，剩余项可在任务记录中继续。" }
+        Hint {
+            text: window.smallBusy ? "退出会停止正在进行的下载。已完成的文稿和等待任务会保留。"
+                                   : "已完成的结果会保留，剩余项可在任务记录中继续。"
+        }
         onAccepted: appState.cancelAndQuit()
     }
     onClosing: function(event) {
@@ -418,6 +610,14 @@ ApplicationWindow {
             window.message = value
             if (editDialog.visible) window.editError = value
             toastTimer.restart()
+        }
+        function onSettingsSaved() {
+            window.settingsFolder = appState.settings.root
+            if (appState.stage === 1) {
+                window.batchFolder = appState.settings.root
+                batchModel.currentIndex = window.models.indexOf(appState.settings.model)
+                batchFormat.currentIndex = window.formats.indexOf(appState.settings.format)
+            }
         }
     }
     Timer { id: toastTimer; interval: 8500; onTriggered: window.message = "" }
@@ -619,43 +819,22 @@ ApplicationWindow {
                         Layout.preferredWidth: 233
                         Layout.maximumWidth: 233
                         spacing: 14
-                        Canvas {
+                        Surface {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 116
-                            onPaint: {
-                                const ctx = getContext("2d")
-                                ctx.reset()
-                                ctx.translate(8, 18)
-                                ctx.strokeStyle = "#c6b8a5"
-                                ctx.lineWidth = 1
-                                ctx.beginPath()
-                                ctx.moveTo(3, 48)
-                                ctx.lineTo(204, 48)
-                                ctx.stroke()
-                                ctx.strokeStyle = "#3f5d46"
-                                ctx.lineWidth = 3
-                                ctx.lineCap = "round"
-                                const peaks = [10, 22, 36, 62, 44, 24, 34, 15, 10]
-                                for (let i = 0; i < peaks.length; i++) {
-                                    ctx.beginPath()
-                                    ctx.moveTo(10 + i * 9, 48 - peaks[i] / 2)
-                                    ctx.lineTo(10 + i * 9, 48 + peaks[i] / 2)
-                                    ctx.stroke()
-                                }
-                                ctx.fillStyle = window.accent
-                                ctx.beginPath()
-                                ctx.arc(111, 48, 4, 0, Math.PI * 2)
-                                ctx.fill()
-                                ctx.strokeStyle = window.ink
-                                for (let i = 0; i < 4; i++) {
-                                    ctx.beginPath()
-                                    ctx.moveTo(135, 30 + i * 12)
-                                    ctx.lineTo(i === 3 ? 174 : 197, 30 + i * 12)
-                                    ctx.stroke()
-                                }
+                            Layout.preferredHeight: 190
+                            color: window.leafWash
+                            PaperSprite {
+                                anchors.fill: parent
+                                anchors.margins: 9
+                                motion: window.motion && visible
+                                listening: window.parsing
                             }
                         }
-                        Heading { text: "从声音到文稿"; font.pixelSize: 21; Layout.leftMargin: 8 }
+                        Heading {
+                            text: window.parsing ? "纸灵正在听" : "从声音到文稿"
+                            font.pixelSize: 21
+                            Layout.leftMargin: 8
+                        }
                         Hint {
                             text: "优先使用可用的中文字幕。需要语音识别时，片语会在本机转写。"
                             Layout.fillWidth: true
@@ -708,7 +887,9 @@ ApplicationWindow {
                                     required property var modelData
                                     width: ListView.view.width - 6
                                     height: modelData.error ? 61 : 48
-                                    color: modelData.checked ? window.mint : window.ivory
+                                    color: modelData.checked ? window.leafWash : materialHover.hovered ? "#f2f1e6" : window.ivory
+                                    Behavior on color { enabled: window.motion; ColorAnimation { duration: 120 } }
+                                    HoverHandler { id: materialHover }
                                     Rectangle { height: 1; width: parent.width; anchors.bottom: parent.bottom; color: window.border }
                                     RowLayout {
                                         anchors.fill: parent
@@ -738,13 +919,13 @@ ApplicationWindow {
                                 columnSpacing: 8
                                 rowSpacing: 3
                                 Label { text: "保存目录"; color: window.ink }
-                                Field { id: batchOutput; objectName: "batchOutput"; Layout.fillWidth: true; text: window.batchFolder
+                                PathField { id: batchOutput; objectName: "batchOutput"; Layout.fillWidth: true; text: window.batchFolder
                                     selectByMouse: true; onTextEdited: window.batchFolder = text }
                                 Action { text: "浏览"; onClicked: { window.chooseEditingFolder = false; window.chooseSettingFolder = false; outputDialog.open() } }
                                 Hint { text: "中文 · 简体输出"; font.pixelSize: 12 }
                                 Label { text: "转写模型"; color: window.ink }
                                 RowLayout {
-                                    ComboBox { id: batchModel; model: window.modelLabels; Layout.preferredWidth: 166
+                                    Choice { id: batchModel; model: window.modelLabels; Layout.preferredWidth: 166
                                         currentIndex: window.models.indexOf(appState.settings.model) }
                                     Hint {
                                         font.pixelSize: 12
@@ -754,7 +935,7 @@ ApplicationWindow {
                                     }
                                 }
                                 Label { text: "导出格式"; color: window.ink }
-                                ComboBox { id: batchFormat; model: window.formatLabels; Layout.preferredWidth: 161
+                                Choice { id: batchFormat; model: window.formatLabels; Layout.preferredWidth: 161
                                     currentIndex: window.formats.indexOf(appState.settings.format) }
                             }
                             RowLayout {
@@ -825,7 +1006,7 @@ ApplicationWindow {
                                             height: modelData.error ? 68 : 58
                                             onClicked: appState.openJob(modelData.id)
                                             background: Rectangle {
-                                                color: appState.detail.id === jobRow.modelData.id ? window.mint :
+                                                color: appState.detail.id === jobRow.modelData.id ? window.leafWash :
                                                            jobRow.hovered ? window.inset : window.ivory
                                                 radius: 6
                                                 border.width: jobRow.visualFocus ? 2 : 0
@@ -845,6 +1026,7 @@ ApplicationWindow {
                                                         elide: Text.ElideRight; textFormat: Text.PlainText
                                                         text: jobRow.modelData.error || window.progressLabel(jobRow.modelData) || jobRow.modelData.source }
                                                     Meter { Layout.fillWidth: true
+                                                        flowing: true
                                                         visible: window.measured(jobRow.modelData)
                                                         value: visible ? jobRow.modelData.progress : 0
                                                         Accessible.name: jobRow.modelData.stateLabel + "进度" }
@@ -972,92 +1154,228 @@ ApplicationWindow {
                 }
 
                 Surface {
-                    ScrollView {
+                    id: settingsPane
+                    readonly property bool checking: appState.folderCheck.status === "checking"
+                    readonly property bool matchesCheck: appState.folderCheck.path === defaultOutput.text.trim()
+                    ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 18
-                        clip: true
-                        contentWidth: availableWidth
-                        ColumnLayout {
-                            width: parent.width
-                            spacing: 13
-                            Heading { text: "文件保存" }
-                            Hint { text: "每个视频按标题建立文件夹。已生成的文稿可从任务记录补存。"; Layout.fillWidth: true }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Field {
-                                    id: defaultOutput
+                        anchors.margins: window.split ? 24 : 17
+                        spacing: 15
+                        ScrollView {
+                            id: settingsScroll
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            contentWidth: availableWidth
+                            GridLayout {
+                                width: settingsScroll.availableWidth
+                                columns: window.split ? 2 : 1
+                                columnSpacing: 42
+                                rowSpacing: 30
+                                ColumnLayout {
                                     Layout.fillWidth: true
-                                    text: window.settingsFolder
-                                    selectByMouse: true
-                                    onTextEdited: window.settingsFolder = text
-                                }
-                                Action { text: "选择目录"; onClicked: { window.chooseEditingFolder = false; window.chooseSettingFolder = true; outputDialog.open() } }
-                            }
-                            RowLayout {
-                                Label { text: "默认导出格式" }
-                                ComboBox { id: defaultFormat; model: window.formatLabels; Layout.preferredWidth: 161
-                                    currentIndex: window.formats.indexOf(appState.settings.format) }
-                            }
-                            Heading { text: "转写模型"; Layout.topMargin: 12 }
-                            Repeater {
-                                model: window.models
-                                Surface {
-                                    id: modelCard
-                                    required property string modelData
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 82
-                                    color: window.inset
-                                    ColumnLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 10
-                                        RowLayout {
-                                            Heading { font.pixelSize: 15; text: modelCard.modelData === "small" ? "快速 · small" : "均衡 · medium" }
-                                            Status {
-                                                label: appState.modelsInfo[modelCard.modelData].ready ? "已缓存" : "需下载"
-                                                status: appState.modelsInfo[modelCard.modelData].ready ? "done" : ""
+                                    Layout.preferredWidth: 445
+                                    Layout.alignment: Qt.AlignTop
+                                    spacing: 12
+                                    Heading { text: "文件保存"; font.pixelSize: 22 }
+                                    Hint { Layout.fillWidth: true; text: "每条文稿按原始视频标题单独归档。" }
+                                    PathField {
+                                        id: defaultOutput
+                                        objectName: "settingsOutput"
+                                        Layout.fillWidth: true
+                                        enabled: !settingsPane.checking
+                                        text: window.settingsFolder
+                                        Accessible.name: "默认保存目录"
+                                        onTextEdited: window.settingsFolder = text
+                                    }
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 6
+                                        Action {
+                                            text: "选择目录"
+                                            enabled: !settingsPane.checking
+                                            onClicked: { window.chooseEditingFolder = false; window.chooseSettingFolder = true; outputDialog.open() }
+                                        }
+                                        Action {
+                                            text: "校验"
+                                            objectName: "checkOutput"
+                                            enabled: !settingsPane.checking && defaultOutput.text.trim() !== ""
+                                            onClicked: appState.checkFolder(defaultOutput.text)
+                                        }
+                                        Action {
+                                            text: "打开"
+                                            objectName: "openSettingsOutput"
+                                            quiet: true
+                                            enabled: !settingsPane.checking && defaultOutput.text.trim() !== ""
+                                            onClicked: appState.openFolder(defaultOutput.text)
+                                        }
+                                        Item { Layout.fillWidth: true }
+                                        Hint { text: "Ctrl + 单击路径也可打开"; font.pixelSize: 12 }
+                                    }
+                                    Hint {
+                                        objectName: "folderCheckMessage"
+                                        Layout.fillWidth: true
+                                        Layout.minimumHeight: 23
+                                        text: settingsPane.matchesCheck && appState.folderCheck.message ? appState.folderCheck.message :
+                                              "保存时会校验写入权限，并创建尚不存在的目录。"
+                                        color: settingsPane.matchesCheck && appState.folderCheck.status === "invalid" ? window.accent :
+                                               settingsPane.matchesCheck && appState.folderCheck.status === "valid" ? window.leaf : window.muted
+                                    }
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        Layout.topMargin: 2
+                                        Label { text: "默认导出格式"; Layout.fillWidth: true }
+                                        Choice {
+                                            id: defaultFormat
+                                            objectName: "defaultFormat"
+                                            model: window.formatLabels
+                                            Layout.preferredWidth: 166
+                                            currentIndex: window.formats.indexOf(appState.settings.format)
+                                            Accessible.name: "默认导出格式"
+                                        }
+                                    }
+                                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; Layout.topMargin: 12; color: window.border }
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 3
+                                            Heading { text: "减少动态效果"; font.pixelSize: 16 }
+                                            Hint { Layout.fillWidth: true; text: "关闭涟漪和流动动画，保留状态提示。" }
+                                        }
+                                        Switch {
+                                            id: reducedMotion
+                                            objectName: "reducedMotion"
+                                            checked: appState.settings.reducedMotion
+                                            Accessible.name: "减少动态效果"
+                                            onToggled: appState.setReducedMotion(checked)
+                                            indicator: Rectangle {
+                                                x: reducedMotion.leftPadding
+                                                y: (reducedMotion.height - height) / 2
+                                                implicitWidth: 43
+                                                implicitHeight: 24
+                                                radius: 12
+                                                color: reducedMotion.checked ? window.leaf : "#deded1"
+                                                border.width: reducedMotion.visualFocus ? 2 : 0
+                                                border.color: window.accent
+                                                Rectangle {
+                                                    width: 18; height: 18; radius: 9
+                                                    x: reducedMotion.checked ? parent.width - width - 3 : 3
+                                                    y: 3; color: window.ivory
+                                                }
                                             }
                                         }
-                                        Hint {
-                                            Layout.fillWidth: true
-                                            text: (modelCard.modelData === "small" ? "清晰口播与大批素材初稿，资源占用较低。" :
-                                                   "适合常规中文口播，专业词和有背景声时优先试用。") +
-                                                  "  " + appState.modelsInfo[modelCard.modelData].size
+                                    }
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    Layout.preferredWidth: 350
+                                    Layout.alignment: Qt.AlignTop
+                                    spacing: 12
+                                    Heading { text: "转写模型"; font.pixelSize: 22 }
+                                    Surface {
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: smallCard.implicitHeight + 28
+                                        color: window.leafWash
+                                        ColumnLayout {
+                                            id: smallCard
+                                            anchors.fill: parent
+                                            anchors.margins: 14
+                                            spacing: 8
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                Heading { Layout.fillWidth: true; text: "快速 · small"; font.pixelSize: 17 }
+                                                Status {
+                                                    label: appState.modelsInfo.small.ready ? "已缓存" : window.smallBusy ? "下载中" : appState.modelsInfo.small.size
+                                                    status: appState.modelsInfo.small.ready ? "done" : ""
+                                                }
+                                            }
+                                            Hint { Layout.fillWidth: true; text: "适合清晰口播和批量初稿。提前下载后，处理本地素材时可离线使用。" }
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                Hint {
+                                                    id: downloadHint
+                                                    objectName: "smallDownloadMessage"
+                                                    Layout.fillWidth: true
+                                                    text: appState.modelsInfo.small.ready && !window.smallBusy ? "本机模型已就绪，可离线使用" :
+                                                          appState.smallDownload.message || "下载到本机模型缓存"
+                                                    color: appState.smallDownload.status === "failed" && !appState.modelsInfo.small.ready ? window.accent : window.leaf
+                                                    font.pixelSize: 12
+                                                }
+                                                Action {
+                                                    visible: !appState.modelsInfo.small.ready || window.smallBusy
+                                                    objectName: "downloadSmall"
+                                                    text: appState.smallDownload.status === "stopping" ? "正在停止" : window.smallBusy ? "停止" :
+                                                          appState.smallDownload.status === "failed" ? "重试下载" : "提前下载"
+                                                    primary: !window.smallBusy
+                                                    enabled: appState.smallDownload.status !== "stopping"
+                                                    onClicked: window.smallBusy ? appState.cancelSmallDownload() : appState.downloadSmall()
+                                                }
+                                            }
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                visible: window.smallBusy
+                                                Meter {
+                                                    Layout.fillWidth: true
+                                                    implicitHeight: 7
+                                                    indeterminate: typeof appState.smallDownload.progress !== "number"
+                                                    value: indeterminate ? 0 : appState.smallDownload.progress / 100
+                                                    flowing: appState.smallDownload.status === "downloading"
+                                                    Accessible.name: "small 下载进度"
+                                                }
+                                                Label {
+                                                    objectName: "smallDownloadPercentage"
+                                                    text: typeof appState.smallDownload.progress === "number" ? appState.smallDownload.progress + "%" : ""
+                                                    color: window.leaf
+                                                    font.pixelSize: 12
+                                                    Accessible.name: text
+                                                }
+                                            }
+                                        }
+                                    }
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        Heading { Layout.fillWidth: true; text: "均衡 · medium"; font.pixelSize: 16 }
+                                        Hint { text: appState.modelsInfo.medium.ready ? "已缓存" : appState.modelsInfo.medium.size }
+                                    }
+                                    Hint { Layout.fillWidth: true; text: "常规中文口播默认使用。需要时自动下载。" }
+                                    GridLayout {
+                                        Layout.fillWidth: true
+                                        Layout.topMargin: 8
+                                        columns: 2
+                                        rowSpacing: 9
+                                        Label { Layout.fillWidth: true; text: "默认模型" }
+                                        Choice {
+                                            id: defaultModel
+                                            model: window.modelLabels
+                                            Layout.preferredWidth: 166
+                                            currentIndex: window.models.indexOf(appState.settings.model)
+                                            Accessible.name: "默认模型"
+                                        }
+                                        Label { Layout.fillWidth: true; text: "同时处理数" }
+                                        Choice {
+                                            id: parallelism
+                                            objectName: "parallelism"
+                                            model: ["1 条（默认）", "2 条", "3 条"]
+                                            currentIndex: (appState.settings.parallelism || 1) - 1
+                                            Layout.preferredWidth: 166
+                                            Accessible.name: "同时处理数"
                                         }
                                     }
                                 }
                             }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label { text: "同时处理数" }
-                                ComboBox {
-                                    id: parallelism
-                                    objectName: "parallelism"
-                                    model: ["1 条（默认）", "2 条", "3 条"]
-                                    currentIndex: (appState.settings.parallelism || 1) - 1
-                                    Layout.preferredWidth: 166
-                                    Accessible.name: "同时处理数"
-                                }
-                                Hint { text: "同时处理越多，CPU 和内存占用越高。"; Layout.fillWidth: true }
-                            }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label { text: "默认模型" }
-                                ComboBox { id: defaultModel; model: window.modelLabels; Layout.preferredWidth: 166
-                                    currentIndex: window.models.indexOf(appState.settings.model) }
-                                Item { Layout.fillWidth: true }
-                                Action {
-                                    text: "保存设置"; primary: true
-                                    objectName: "saveSettings"
-                                    onClicked: {
-                                        appState.saveSettings(defaultOutput.text, window.models[defaultModel.currentIndex],
-                                                              window.formats[defaultFormat.currentIndex], parallelism.currentIndex + 1)
-                                        if (appState.stage === 1) {
-                                            batchOutput.text = appState.settings.root
-                                            batchModel.currentIndex = window.models.indexOf(appState.settings.model)
-                                            batchFormat.currentIndex = window.formats.indexOf(appState.settings.format)
-                                        }
-                                    }
-                                }
+                        }
+                        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: window.border }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Hint { Layout.fillWidth: true; text: "导出与并发设置将用于新任务。"; font.pixelSize: 12 }
+                            Action {
+                                text: settingsPane.checking ? "校验中…" : "保存设置"
+                                primary: true
+                                objectName: "saveSettings"
+                                enabled: !settingsPane.checking && defaultOutput.text.trim() !== ""
+                                onClicked: appState.saveSettings(defaultOutput.text, window.models[defaultModel.currentIndex],
+                                                                 window.formats[defaultFormat.currentIndex], parallelism.currentIndex + 1)
                             }
                         }
                     }
@@ -1167,6 +1485,7 @@ ApplicationWindow {
                                         }
                                         Meter {
                                             Layout.fillWidth: true
+                                            flowing: true
                                             visible: window.measured(queueRow.modelData)
                                             value: visible ? queueRow.modelData.progress : 0
                                             Accessible.name: (queueRow.modelData.stateLabel || "处理") + "进度"
@@ -1223,7 +1542,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.preferredHeight: toast.implicitHeight + 13
                 visible: window.message !== ""
-                color: window.mint
+                color: window.blush
                 Hint { id: toast; anchors.left: parent.left; anchors.right: parent.right
                     anchors.margins: 7; anchors.verticalCenter: parent.verticalCenter; text: window.message }
             }

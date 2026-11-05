@@ -4,7 +4,7 @@ Set-Location -LiteralPath $PSScriptRoot
 $root = $PSScriptRoot
 $env:PYINSTALLER_CONFIG_DIR = Join-Path $root '.build/pyinstaller-cache'
 $env:PYTHONUSERBASE = Join-Path $root '.build/python-user'
-$version = '1.1.0'
+$version = '1.2.0'
 $release = Join-Path $root ".build/release/$version/Pianyu"
 
 if (-not $PackageOnly) {

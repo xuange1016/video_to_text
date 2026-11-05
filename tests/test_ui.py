@@ -6,7 +6,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("QT_QUICK_BACKEND", "software")
 
 from PySide6.QtCore import QObject, QPointF, QUrl, Qt
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QDesktopServices, QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
 from PySide6.QtTest import QTest
@@ -54,12 +54,12 @@ def test_click_through_import_selection_and_export(tmp_path, monkeypatch):
 
         return window.findChild(QObject, name) or scan(window.contentItem())
 
-    def click(name):
+    def click(name, modifiers=Qt.NoModifier):
         QTest.qWait(60)
         control = find(name)
         assert control and control.property("visible") and control.property("enabled"), name
         point = control.mapToScene(QPointF(control.width() / 2, control.height() / 2)).toPoint()
-        QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, point)
+        QTest.mouseClick(window, Qt.LeftButton, modifiers, point)
 
     def wait(predicate):
         for _ in range(150):
@@ -77,6 +77,7 @@ def test_click_through_import_selection_and_export(tmp_path, monkeypatch):
             assert window.grabWindow().save(str(directory / name))
 
     QTest.qWait(200)
+    wait(lambda: controller.folderCheck["status"] == "valid")
     snapshot("01-import.png")
     find("sourceInput").setProperty("text", f"{source}\n{removed_source}\n{later_source}")
     click("resolveMaterials")
@@ -135,10 +136,53 @@ def test_click_through_import_selection_and_export(tmp_path, monkeypatch):
     QTest.qWait(100)
     snapshot("07-result.png")
     click("navSettings")
+    click("defaultFormat")
+    wait(lambda: find("defaultFormatOption0") and find("defaultFormatOption1"))
+    option = find("defaultFormatOption0")
+    point = option.mapToScene(QPointF(option.width() / 2, option.height() / 2)).toPoint()
+    QTest.mouseMove(window, point)
+    wait(lambda: option.property("hovered"))
+    assert option.property("contentItem").property("color").name() == "#292d26"
+    snapshot("08-format-hover.png")
+    QTest.keyClick(window, Qt.Key_Escape)
+    wait(lambda: not (row := find("defaultFormatOption0")) or not row.property("visible"))
+    click("defaultFormat")
+    QTest.keyClick(window, Qt.Key_Down)
+    QTest.keyClick(window, Qt.Key_Return)
+    wait(lambda: find("defaultFormat").property("currentIndex") == 1)
+    opened = []
+    monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: opened.append(Path(url.toLocalFile())) or True)
+    click("settingsOutput", Qt.ControlModifier)
+    assert opened == [tmp_path / "导出"]
+    click("checkOutput")
+    wait(lambda: controller.folderCheck["status"] == "valid")
     find("parallelism").setProperty("currentIndex", 1)
     click("saveSettings")
-    assert controller.settings["parallelism"] == 2
-    snapshot("08-settings.png")
+    wait(lambda: controller.settings["parallelism"] == 2)
+    assert controller.settings["format"] == "txt"
+    QTest.qWait(180)
+    snapshot("09-settings.png")
+    download_complete = Event()
+    cached = Event()
+    monkeypatch.setattr("main.model_path", lambda name, root: root if name == "small" and cached.is_set() else None)
+
+    def download_model(_name, report, _cancel):
+        report("model", .42)
+        assert download_complete.wait(5)
+        cached.set()
+        return tmp_path
+
+    monkeypatch.setattr(controller.transcriber, "ensure_model", download_model)
+    controller.stateChanged.emit()
+    click("downloadSmall")
+    wait(lambda: find("smallDownloadPercentage").property("text") == "42%")
+    QTest.qWait(180)
+    snapshot("10-downloading.png")
+    download_complete.set()
+    wait(lambda: controller.smallDownload["status"] == "ready")
+    assert "可离线使用" in find("smallDownloadMessage").property("text")
+    click("reducedMotion")
+    assert controller.settings["reducedMotion"] is True
     assert not warnings, warnings
     window.close()
     app.processEvents()

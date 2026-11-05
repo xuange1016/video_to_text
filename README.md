@@ -10,6 +10,8 @@
 4. 转写时可以继续导入素材。任务行显示当前阶段、有数据的阶段百分比和可估算时的预计剩余时间。在「设置」可将同时处理数从默认 1 条调到 2 或 3 条。调低限额后，正在处理的任务先完成。
 5. 在「任务记录」可看完整标题、打开旧文稿、重试未完成项和补存。列表默认使用短标题，用户填写的简称用于辨认任务，导出目录仍由原始标题生成。
 
+在「设置」的 small 模型卡片点「提前下载」，可在正式转写前准备模型。目录输入框支持 Ctrl 单击或 Ctrl + Enter 打开文件夹，也有独立的「打开」按钮。「校验」测试现有目录的写权限，「保存设置」会创建尚不存在的目录并验证写入。需要简化交互时可打开「减少动态效果」。
+
 每条结果存于指定目录下的标题文件夹。TXT 是可读文稿，SRT 带时间码。默认先试可访问的中文字幕；需要语音转写时使用模型并统一转简体。
 
 | 模型 | 场景 | 下载大小 |
@@ -27,9 +29,9 @@
 
 运行 `./build.ps1` 生成免安装目录和安装包。`./build.ps1 -PortableOnly` 只生成免安装目录。构建需要 PyInstaller 6.22.3。生成安装包时还需要将 Inno Setup 的 `ISCC.exe` 放在 `.build/inno`。把 FFmpeg、ffprobe 和 yt-dlp.exe 及其许可放在 `.build/release-tools`，将 Playwright 的完整 Chromium 安装到 `.build/browsers`，并把 Noto Sans SC OTF 与 OFL 放在 `.build/fonts`。
 
-1.1 沿用 PySide6、PyInstaller 和 Inno Setup，免安装目录自带 Python、Qt、媒体工具和 Chromium。Tauri 可为 WebView 界面打包 Python sidecar。迁移时需重写 QML 界面并按目标平台分别封装转写、媒体和浏览器依赖。当前版本的便携范围为 Windows 11 x64，任务数据库和模型默认仍保存在当前 Windows 用户目录。
+桌面版沿用 PySide6、PyInstaller 和 Inno Setup，免安装目录自带 Python、Qt、媒体工具和 Chromium。当前版本的便携范围为 Windows 11 x64，任务数据库和模型默认仍保存在当前 Windows 用户目录。
 
 
 ## 历史版本补录说明
 
-这是片语 1.1.0 的真实里程碑源码，于 2026-11-06 集中整理入库。此处说明反映当时功能，日常使用请下载最新版本。恢复与字节码比对见 [版本历史说明](docs/HISTORY.md)，最新开发说明见 [开发文档](https://github.com/xuange1016/video_to_text/blob/main/docs/DEVELOPMENT.md)。
+这是片语 1.2.0 的真实里程碑源码，于 2026-11-06 集中整理入库。此处说明反映当时功能，日常使用请下载最新版本。恢复与字节码比对见 [版本历史说明](docs/HISTORY.md)，最新开发说明见 [开发文档](https://github.com/xuange1016/video_to_text/blob/main/docs/DEVELOPMENT.md)。

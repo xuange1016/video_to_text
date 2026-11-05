@@ -8,10 +8,12 @@ import os
 import queue
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
 import threading
 import time
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -122,6 +124,21 @@ def model_path(name, models):
     return None
 
 
+@contextmanager
+def model_access(lock, stage, report, cancel):
+    if not lock.acquire(blocking=False):
+        report(stage, None)
+        while not lock.acquire(timeout=.2):
+            if cancel():
+                raise Cancelled
+    try:
+        if cancel():
+            raise Cancelled
+        yield
+    finally:
+        lock.release()
+
+
 class Transcriber:
     def __init__(self, models):
         self.models = models
@@ -129,6 +146,7 @@ class Transcriber:
         self.name = None
         self.cc = OpenCC("t2s")
         self._model_lock = threading.Lock()
+        self._download_locks = {name: threading.Lock() for name in MODEL_SIZES}
         self._text_lock = threading.Lock()
 
     def normalize(self, segments):
@@ -139,34 +157,26 @@ class Transcriber:
     def read_model(self, name, report, cancel):
         from faster_whisper import WhisperModel
 
-        if not self._model_lock.acquire(blocking=False):
-            report("loading", None)
-            while not self._model_lock.acquire(timeout=.2):
-                if cancel():
-                    raise Cancelled
         try:
-            if cancel():
-                raise Cancelled
-            if self.name == name and self.model:
+            path = self.ensure_model(name, report, cancel)
+            with model_access(self._model_lock, "loading", report, cancel):
+                if self.name == name and self.model:
+                    return self.model
+                self.name, self.model = None, None
+                report("loading", None)
+                cpu_threads = max(1, min(4, (os.cpu_count() or 1) // MAX_PARALLEL))
+                self.model = WhisperModel(str(path), device="cpu", compute_type="int8", local_files_only=True,
+                                          num_workers=MAX_PARALLEL, cpu_threads=cpu_threads)
+                self.name = name
                 return self.model
-            self.name, self.model = None, None
-            path = model_path(name, self.models)
-            if not path:
-                path = self.download_model(name, report, cancel)
-            if cancel():
-                raise Cancelled
-            report("loading", None)
-            cpu_threads = max(1, min(4, (os.cpu_count() or 1) // MAX_PARALLEL))
-            self.model = WhisperModel(str(path), device="cpu", compute_type="int8", local_files_only=True,
-                                      num_workers=MAX_PARALLEL, cpu_threads=cpu_threads)
-            self.name = name
-            return self.model
         except Cancelled:
             raise
         except Exception as exc:
             raise MediaError("model") from exc
-        finally:
-            self._model_lock.release()
+
+    def ensure_model(self, name, report, cancel):
+        with model_access(self._download_locks[name], "model", report, cancel):
+            return model_path(name, self.models) or self.download_model(name, report, cancel)
 
     def download_model(self, name, report, cancel):
         from huggingface_hub import snapshot_download
@@ -180,11 +190,14 @@ class Transcriber:
                 kwargs["file"] = io.StringIO()
                 super().__init__(*args, **kwargs)
 
-            def display(self, msg=None, pos=None):
+            def update(self, n=1):
                 if cancel():
                     raise Cancelled
+                return super().update(n)
+
+            def display(self, msg=None, pos=None):
                 # snapshot_download reports each file separately. Only show the weights transfer.
-                if self.unit == "B" and self.total and self.total >= MINIMUM_MODEL_BYTES[name]:
+                if not cancel() and self.unit == "B" and self.total and self.total >= MINIMUM_MODEL_BYTES[name]:
                     report("model", min(0.99, self.n / self.total))
 
         path = self.models / f"faster-whisper-{name}"
@@ -380,11 +393,24 @@ def safe_name(title):
     return "_" + name if RESERVED_NAME.match(name) else name
 
 
-def check_output(root):
+def output_path(root):
+    root = root.strip()
+    if root.startswith('"') and root.endswith('"'):
+        root = root[1:-1]
     path = Path(root)
     if not path.is_absolute():
-        raise OSError("保存目录需要使用绝对路径")
-    path.mkdir(parents=True, exist_ok=True)
+        raise ValueError("请填写保存目录的绝对路径。")
+    if '\x00' in root:
+        raise ValueError("保存目录包含无效字符。")
+    return path
+
+
+def check_output(root, *, create=True):
+    path = output_path(root)
+    if create:
+        path.mkdir(parents=True, exist_ok=True)
+    if not stat.S_ISDIR(path.stat().st_mode):
+        raise NotADirectoryError(str(path))
     with tempfile.NamedTemporaryFile(prefix=".pianyu-check-", dir=path) as probe:
         probe.write(b"pianyu")
         probe.flush()
