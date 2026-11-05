@@ -1,0 +1,156 @@
+{
+  "1.0.0": {
+    "original_executable_sha256": "13c8cfbf725684643501eec260c97178b7d23e0335005e53798847e4c27850d9",
+    "source_sha256": {
+      "build.ps1": "406dfa6de47b275c27111ce80ebaaaef0d79276555fd8402f6638ffcd24c899d",
+      "engine.py": "e6137ed19e8d1059792c2e4a8f66fa6c6b261196d299f84a8146b1a7139ee189",
+      "main.py": "b235d7496cd0df0b3e9bc16c9e46a3f57811a091575266e11a1328b506f3d90b",
+      "packaging.iss": "303f8aaed2dac14497fde9da04b39daba781b6f1c5e5ab99ec232275cb8f5c71",
+      "platforms.py": "58ffd263322b82fa35c28623112c09fe57e88eed29f45f4d15fa2922fccae50b",
+      "requirements.txt": "b52cad5ff9445742092ea22b27c64d655ac7f93170a8115095c36291b1379651",
+      "storage.py": "8342f26759177ee4a8c0545e24fbfe2c30e7031dfd924d499670b3d925f9f40b",
+      "tests/test_ui.py": "5e05efdc326693d1835a9dd1ad160b681228db664218a984ae7f4f85cb8c01b8",
+      "tests/test_workflow.py": "815da1a55cca3c9baa5c9e98e1add334a156660a5c226954c4b111d367028958"
+    },
+    "ui_sha256": {
+      "ui/Main.qml": "237d11d9d56e3f50976afec345468d0f1318f9f62f09accbcb6658804a0a720d"
+    },
+    "tests_passed": 10,
+    "bytecode_matches": {
+      "main.py": true,
+      "engine.py": true,
+      "storage.py": true,
+      "platforms.py": true
+    }
+  },
+  "1.1.0": {
+    "original_executable_sha256": "6c2491d5841551434b532c97020f5d5245cdbf23a0d1d88904fe066cde2e41a6",
+    "source_sha256": {
+      "build.ps1": "cb48daa249749317e161e74de1e137de39e2c2fa0d1a220197e67c565083c53c",
+      "deployment/make_icon.py": "353fe8b52231ef575b5a397360759ae7fb100c6644a2f47c5f7110da05562ce1",
+      "engine.py": "2af43473c44a7ff71bafa78220427bf0a0842d39cf1e2b5847cca9d35a8e596e",
+      "main.py": "12e6b1c395ab238911b86830f5cf4848b607224d6c52b9fda8fc2fd3941bb9aa",
+      "packaging.iss": "c293bae3986bc049ba6b8fab35c821ea87f6dea4d4ec49530ac2283a40064d48",
+      "platforms.py": "58ffd263322b82fa35c28623112c09fe57e88eed29f45f4d15fa2922fccae50b",
+      "requirements.txt": "b52cad5ff9445742092ea22b27c64d655ac7f93170a8115095c36291b1379651",
+      "storage.py": "2a65fd140307b077ca6a5f2b337a2118ee24bb9b924674a8f28a9c756f687549",
+      "tests/test_controller_queue.py": "f0dd41187a9ccae841e75482bc62fd577e503bbe0037b56834244eab42a75a8f",
+      "tests/test_queue_store.py": "70adc042571f203a9f8b9816a4d0f04b43f1cf818959fb820ca7ccfa039d0a37",
+      "tests/test_ui.py": "edd1d9910570120d19262d252a06009ef5d879053aef5e14d97c1dd8ab00346e",
+      "tests/test_workflow.py": "ebf05f8d02595a0f362295d8acdf8057cfe92e995482ead1d08328fd9d20cebb"
+    },
+    "ui_sha256": {
+      "ui/assets/pianyu.svg": "b0d2b55f1314f9a250b07acd23869ef75a3d3e83531208ddf162bff203486dd1",
+      "ui/Main.qml": "034256dddf812b1708d3e9f19b891c6735a3b5e213f84f441efb869ee2c58e33"
+    },
+    "tests_passed": 15,
+    "bytecode_matches": {
+      "main.py": true,
+      "engine.py": true,
+      "storage.py": true,
+      "platforms.py": true
+    }
+  },
+  "1.2.0": {
+    "original_executable_sha256": "b8f21eac4f3ddade041ee629f6d5e2950830569d196a1ae86cd6be7c1649f70d",
+    "source_sha256": {
+      "build.ps1": "d9f059fe80136921b6a28f94c46828908ec438aaa902f326d8d8abc57cf9c0eb",
+      "deployment/make_icon.py": "353fe8b52231ef575b5a397360759ae7fb100c6644a2f47c5f7110da05562ce1",
+      "engine.py": "02b17d778b8bc4f4d4b215d33a5624ac2d10595d4c520943e0fc0ed354315ce4",
+      "main.py": "f81ab5a2fbd68e5c34949b8aefe48ac59ca14dcec61c9d7ab21a177a188b4768",
+      "packaging.iss": "c293bae3986bc049ba6b8fab35c821ea87f6dea4d4ec49530ac2283a40064d48",
+      "platforms.py": "58ffd263322b82fa35c28623112c09fe57e88eed29f45f4d15fa2922fccae50b",
+      "requirements.txt": "b52cad5ff9445742092ea22b27c64d655ac7f93170a8115095c36291b1379651",
+      "storage.py": "2a65fd140307b077ca6a5f2b337a2118ee24bb9b924674a8f28a9c756f687549",
+      "tests/test_controller_queue.py": "94429f4da67e7ae60d9959749003c28e0e98613d454c6c181e5f0c2e3f47944e",
+      "tests/test_queue_store.py": "70adc042571f203a9f8b9816a4d0f04b43f1cf818959fb820ca7ccfa039d0a37",
+      "tests/test_settings.py": "0e8eda6f5a41e9d5f62c2fbef9ed9b38f17f21c13116211938a7845c4a10adaf",
+      "tests/test_ui.py": "9827e8bf4845492725ae00f05f9b671cafb4c47879c21cc901584d682e9618d1",
+      "tests/test_workflow.py": "ebf05f8d02595a0f362295d8acdf8057cfe92e995482ead1d08328fd9d20cebb"
+    },
+    "ui_sha256": {
+      "ui/assets/paper-sprite.svg": "b539b2bb7cf78646b08b95f0af38856df1c524d65d467372ac355d67a30630c0",
+      "ui/assets/pianyu.svg": "b0d2b55f1314f9a250b07acd23869ef75a3d3e83531208ddf162bff203486dd1",
+      "ui/Main.qml": "1b39d2f4ffc0bacb28ac6e1345e26bb0f26d9ebc2ad7ddad49a30849fd0422b0",
+      "ui/PaperSprite.qml": "fc0b898fd30651837853019557d15130809eee1217f9f2dbfd81476d0d7fd685"
+    },
+    "tests_passed": 18,
+    "bytecode_matches": {
+      "main.py": true,
+      "engine.py": true,
+      "storage.py": true,
+      "platforms.py": true
+    }
+  },
+  "1.3.0": {
+    "original_executable_sha256": "bbe8805b498d02edc17047cd9418a41b1b7fc4e685c8b47f20a69e19c747da69",
+    "source_sha256": {
+      "build.ps1": "9797695ea75877e5aad3c8aed356cb869ef3fc6a8531f60e845a83e32a36a40b",
+      "deployment/make_icon.py": "353fe8b52231ef575b5a397360759ae7fb100c6644a2f47c5f7110da05562ce1",
+      "downloads.py": "1a8910d28484b9af4675a27f3ac2a1bb68ad507da72752e317ea103dca4b818c",
+      "engine.py": "02b17d778b8bc4f4d4b215d33a5624ac2d10595d4c520943e0fc0ed354315ce4",
+      "main.py": "31266d5c550b75b6ab1cd20cef5fc0760524e4a5e59dab3698dc935033729ce7",
+      "packaging.iss": "c293bae3986bc049ba6b8fab35c821ea87f6dea4d4ec49530ac2283a40064d48",
+      "platforms.py": "abc391b697a08de9030ccad9eed3f9c6ab13bb9afc3ac2b1a43cd9455f47537d",
+      "requirements.txt": "b52cad5ff9445742092ea22b27c64d655ac7f93170a8115095c36291b1379651",
+      "storage.py": "11c01062f7b5da5a2f1f89f8caeaf6a5d85908ae868012fb0729483904630a3d",
+      "tests/test_controller_queue.py": "94429f4da67e7ae60d9959749003c28e0e98613d454c6c181e5f0c2e3f47944e",
+      "tests/test_downloads.py": "c8c6976c71e686d9b523ea7bae1ca31a3afe8d1fc79fa3be83f585151263de0e",
+      "tests/test_queue_store.py": "70adc042571f203a9f8b9816a4d0f04b43f1cf818959fb820ca7ccfa039d0a37",
+      "tests/test_settings.py": "0e8eda6f5a41e9d5f62c2fbef9ed9b38f17f21c13116211938a7845c4a10adaf",
+      "tests/test_ui.py": "6b73813016891545b44dafca390a1b64e32505808b71dc8cfc1d83fc70cc48ae",
+      "tests/test_video_workflow.py": "290bba38016c06511e0c32b65e786637bd85f3cc72f073a0cac4e63530a925d9",
+      "tests/test_workflow.py": "ebf05f8d02595a0f362295d8acdf8057cfe92e995482ead1d08328fd9d20cebb"
+    },
+    "ui_sha256": {
+      "ui/assets/paper-sprite.svg": "b539b2bb7cf78646b08b95f0af38856df1c524d65d467372ac355d67a30630c0",
+      "ui/assets/pianyu.svg": "b0d2b55f1314f9a250b07acd23869ef75a3d3e83531208ddf162bff203486dd1",
+      "ui/Main.qml": "f2fb5be4e35d6027b66aeba067efacd987f6a11cac37aa823a55146225fe3f46",
+      "ui/PaperSprite.qml": "fc0b898fd30651837853019557d15130809eee1217f9f2dbfd81476d0d7fd685"
+    },
+    "tests_passed": 34,
+    "bytecode_matches": {
+      "main.py": true,
+      "engine.py": true,
+      "storage.py": true,
+      "platforms.py": true,
+      "downloads.py": true
+    }
+  },
+  "1.4.0": {
+    "original_executable_sha256": "17b7416b3053a9303f0fd36136cc0c954dca55fa397f02071deed1ff7052924f",
+    "source_sha256": {
+      "build.ps1": "fcb2f81365e97fb63c25ac0d64163d99c8422c6bd8fbcb13536b4f027fcd7764",
+      "deployment/make_icon.py": "353fe8b52231ef575b5a397360759ae7fb100c6644a2f47c5f7110da05562ce1",
+      "downloads.py": "1a8910d28484b9af4675a27f3ac2a1bb68ad507da72752e317ea103dca4b818c",
+      "engine.py": "02b17d778b8bc4f4d4b215d33a5624ac2d10595d4c520943e0fc0ed354315ce4",
+      "main.py": "92de32b497e761f1670095bd3b31d8c29bf1e2659dccf6427f985754ceb586cb",
+      "packaging.iss": "c293bae3986bc049ba6b8fab35c821ea87f6dea4d4ec49530ac2283a40064d48",
+      "platforms.py": "abc391b697a08de9030ccad9eed3f9c6ab13bb9afc3ac2b1a43cd9455f47537d",
+      "requirements.txt": "b52cad5ff9445742092ea22b27c64d655ac7f93170a8115095c36291b1379651",
+      "storage.py": "74a855465bcba161ce523ca01d6e3c4e2b9b2212f11c0cf583fbcbbeb7d50178",
+      "tests/test_controller_queue.py": "94429f4da67e7ae60d9959749003c28e0e98613d454c6c181e5f0c2e3f47944e",
+      "tests/test_download_page.py": "6d965e14b1ebdad2e1fb55b52127ce1ae9e1e1cce84bd10525f3526f7a0ce13b",
+      "tests/test_downloads.py": "c8c6976c71e686d9b523ea7bae1ca31a3afe8d1fc79fa3be83f585151263de0e",
+      "tests/test_queue_store.py": "70adc042571f203a9f8b9816a4d0f04b43f1cf818959fb820ca7ccfa039d0a37",
+      "tests/test_settings.py": "0e8eda6f5a41e9d5f62c2fbef9ed9b38f17f21c13116211938a7845c4a10adaf",
+      "tests/test_ui.py": "c2fb4abc0bd78e0de49cca577fd88aad73ca8729c173edb7237b724b8e2a3ecb",
+      "tests/test_video_workflow.py": "290bba38016c06511e0c32b65e786637bd85f3cc72f073a0cac4e63530a925d9",
+      "tests/test_workflow.py": "ebf05f8d02595a0f362295d8acdf8057cfe92e995482ead1d08328fd9d20cebb"
+    },
+    "ui_sha256": {
+      "ui/assets/paper-sprite.svg": "b539b2bb7cf78646b08b95f0af38856df1c524d65d467372ac355d67a30630c0",
+      "ui/assets/pianyu.svg": "b0d2b55f1314f9a250b07acd23869ef75a3d3e83531208ddf162bff203486dd1",
+      "ui/Main.qml": "572e49b127bb78616230ac27465ad47007e04f97ea193341830bab6541cef4ab",
+      "ui/PaperSprite.qml": "fc0b898fd30651837853019557d15130809eee1217f9f2dbfd81476d0d7fd685"
+    },
+    "tests_passed": 36,
+    "bytecode_matches": {
+      "main.py": true,
+      "engine.py": true,
+      "storage.py": true,
+      "platforms.py": true,
+      "downloads.py": true
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "Chromium",
+  "version": "141.0.7390.37",
+  "playwright_revision": "chromium-1194",
+  "chrome_dll_sha256": "144305f0fb6353d8c7b998359a20782315db0af00a4811c5473d48e0a97434fe",
+  "embedded_license_blocks": 557,
+  "notice_source": "bundled-browser:chrome://credits/",
+  "source": "https://chromium.googlesource.com/chromium/src/+/141.0.7390.37"
+}

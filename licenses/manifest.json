@@ -1,0 +1,1328 @@
+{
+  "schema_version": 1,
+  "description": "License texts copied without alteration from installed wheels, pinned upstream revisions and the bundled browser. This is a notices inventory, not a claim that every installed distribution is present in every historical executable.",
+  "roots": [
+    "requirements.txt runtime dependencies",
+    "PyInstaller bootloader/build dependencies"
+  ],
+  "distributions": [
+    {
+      "name": "altgraph",
+      "version": "0.17.5",
+      "scope": "build-bootloader",
+      "license_metadata": "MIT",
+      "project_urls": [
+        "Documentation, https://altgraph.readthedocs.io/en/latest/",
+        "Issue tracker, https://github.com/ronaldoussoren/altgraph/issues",
+        "Repository, https://github.com/ronaldoussoren/altgraph"
+      ],
+      "files": [
+        "python/altgraph-0.17.5/altgraph-0.17.5.dist-info/LICENSE"
+      ]
+    },
+    {
+      "name": "anyio",
+      "version": "4.16.0",
+      "scope": "runtime",
+      "license_metadata": "MIT",
+      "project_urls": [
+        "Documentation, https://anyio.readthedocs.io/en/latest/",
+        "Changelog, https://anyio.readthedocs.io/en/stable/versionhistory.html",
+        "Source code, https://github.com/agronholm/anyio",
+        "Issue tracker, https://github.com/agronholm/anyio/issues"
+      ],
+      "files": [
+        "python/anyio-4.16.0/anyio-4.16.0.dist-info/licenses/LICENSE"
+      ]
+    },
+    {
+      "name": "av",
+      "version": "14.2.0",
+      "scope": "runtime",
+      "license_metadata": "BSD-3-Clause",
+      "project_urls": [
+        "Bug Tracker, https://github.com/PyAV-Org/PyAV/discussions/new?category=4-bugs",
+        "Source Code, https://github.com/PyAV-Org/PyAV",
+        "homepage, https://pyav.basswood-io.com"
+      ],
+      "files": [
+        "python/av-14.2.0/av-14.2.0.dist-info/AUTHORS.rst",
+        "python/av-14.2.0/av-14.2.0.dist-info/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "certifi",
+      "version": "2026.10.23",
+      "scope": "runtime",
+      "license_metadata": "MPL-2.0",
+      "project_urls": [
+        "Source, https://github.com/certifi/python-certifi"
+      ],
+      "files": [
+        "python/certifi-2026.10.23/certifi-2026.10.23.dist-info/licenses/LICENSE"
+      ]
+    },
+    {
+      "name": "charset-normalizer",
+      "version": "3.5.2",
+      "scope": "runtime",
+      "license_metadata": "MIT",
+      "project_urls": [
+        "Changelog, https://github.com/jawah/charset_normalizer/blob/master/CHANGELOG.md",
+        "Documentation, https://charset-normalizer.readthedocs.io/",
+        "Code, https://github.com/jawah/charset_normalizer",
+        "Issue tracker, https://github.com/jawah/charset_normalizer/issues"
+      ],
+      "files": [
+        "python/charset-normalizer-3.5.2/charset_normalizer-3.5.2.dist-info/licenses/LICENSE"
+      ]
+    },
+    {
+      "name": "click",
+      "version": "8.5.0",
+      "scope": "runtime",
+      "license_metadata": "BSD-3-Clause",
+      "project_urls": [
+        "Changes, https://click.palletsprojects.com/page/changes/",
+        "Chat, https://discord.gg/pallets",
+        "Documentation, https://click.palletsprojects.com/",
+        "Donate, https://palletsprojects.com/donate",
+        "Source, https://github.com/pallets/click/"
+      ],
+      "files": [
+        "python/click-8.5.0/click-8.5.0.dist-info/licenses/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "colorama",
+      "version": "0.4.6",
+      "scope": "runtime",
+      "license_metadata": null,
+      "project_urls": [
+        "Homepage, https://github.com/tartley/colorama"
+      ],
+      "files": [
+        "python/colorama-0.4.6/colorama-0.4.6.dist-info/licenses/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "ctranslate2",
+      "version": "4.8.5",
+      "scope": "runtime",
+      "license_metadata": "MIT",
+      "project_urls": [
+        "Documentation, https://opennmt.net/CTranslate2",
+        "Forum, https://forum.opennmt.net",
+        "Gitter, https://gitter.im/OpenNMT/CTranslate2",
+        "Source, https://github.com/OpenNMT/CTranslate2"
+      ],
+      "files": [
+        "python/ctranslate2-4.8.5/LICENSE"
+      ]
+    },
+    {
+      "name": "faster-whisper",
+      "version": "1.2.1",
+      "scope": "runtime",
+      "license_metadata": "MIT",
+      "project_urls": [],
+      "files": [
+        "python/faster-whisper-1.2.1/faster_whisper-1.2.1.dist-info/LICENSE"
+      ]
+    },
+    {
+      "name": "filelock",
+      "version": "4.2.7",
+      "scope": "runtime",
+      "license_metadata": "MIT",
+      "project_urls": [
+        "Changelog, https://py-filelock.readthedocs.io/en/latest/changelog.html",
+        "Documentation, https://py-filelock.readthedocs.io",
+        "Homepage, https://github.com/tox-dev/filelock",
+        "Source, https://github.com/tox-dev/filelock",
+        "Tracker, https://github.com/tox-dev/filelock/issues"
+      ],
+      "files": [
+        "python/filelock-4.2.7/filelock-4.2.7.dist-info/licenses/LICENSE"
+      ]
+    },
+    {
+      "name": "flatbuffers",
+      "version": "25.12.19",
+      "scope": "runtime",
+      "license_metadata": "Apache 2.0",
+      "project_urls": [
+        "Documentation, https://google.github.io/flatbuffers/",
+        "Source, https://github.com/google/flatbuffers"
+      ],
+      "files": [
+        "python/flatbuffers-25.12.19/LICENSE"
+      ]
+    },
+    {
+      "name": "fsspec",
+      "version": "2026.9.0",
+      "scope": "runtime",
+      "license_metadata": "BSD-3-Clause",
+      "project_urls": [
+        "Changelog, https://filesystem-spec.readthedocs.io/en/latest/changelog.html",
+        "Documentation, https://filesystem-spec.readthedocs.io/en/latest/",
+        "Homepage, https://github.com/fsspec/filesystem_spec"
+      ],
+      "files": [
+        "python/fsspec-2026.9.0/fsspec-2026.9.0.dist-info/licenses/LICENSE"
+      ]
+    },
+    {
+      "name": "greenlet",
+      "version": "3.5.6",
+      "scope": "runtime",
+      "license_metadata": "MIT AND PSF-2.0",
+      "project_urls": [
+        "Homepage, https://greenlet.readthedocs.io",
+        "Documentation, https://greenlet.readthedocs.io",
+        "Repository, https://github.com/python-greenlet/greenlet",
+        "Issues, https://github.com/python-greenlet/greenlet/issues",
+        "Changelog, https://greenlet.readthedocs.io/en/latest/changes.html"
+      ],
+      "files": [
+        "python/greenlet-3.5.6/greenlet-3.5.6.dist-info/licenses/LICENSE",
+        "python/greenlet-3.5.6/greenlet-3.5.6.dist-info/licenses/LICENSE.PSF"
+      ]
+    },
+    {
+      "name": "h11",
+      "version": "0.16.0",
+      "scope": "runtime",
+      "license_metadata": "MIT",
+      "project_urls": [],
+      "files": [
+        "python/h11-0.16.0/h11-0.16.0.dist-info/licenses/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "hf-xet",
+      "version": "1.8.0",
+      "scope": "runtime",
+      "license_metadata": "Apache-2.0",
+      "project_urls": [
+        "Documentation, https://huggingface.co/docs/hub/xet/index",
+        "Homepage, https://github.com/huggingface/xet-core",
+        "Issues, https://github.com/huggingface/xet-core/issues",
+        "Repository, https://github.com/huggingface/xet-core.git"
+      ],
+      "files": [
+        "python/hf-xet-1.8.0/hf_xet-1.8.0.dist-info/licenses/LICENSE"
+      ]
+    },
+    {
+      "name": "httpcore2",
+      "version": "2.16.0",
+      "scope": "runtime",
+      "license_metadata": "BSD-3-Clause",
+      "project_urls": [
+        "Changelog, https://github.com/pydantic/httpx2/blob/main/src/httpcore2/CHANGELOG.md",
+        "Homepage, https://github.com/pydantic/httpx2",
+        "Source, https://github.com/pydantic/httpx2/blob/main/src/httpcore2"
+      ],
+      "files": [
+        "python/httpcore2-2.16.0/httpcore2-2.16.0.dist-info/licenses/LICENSE.md"
+      ]
+    },
+    {
+      "name": "httpx2",
+      "version": "2.16.0",
+      "scope": "runtime",
+      "license_metadata": "BSD-3-Clause",
+      "project_urls": [
+        "Changelog, https://github.com/pydantic/httpx2/blob/main/src/httpx2/CHANGELOG.md",
+        "Homepage, https://github.com/pydantic/httpx2",
+        "Source, https://github.com/pydantic/httpx2"
+      ],
+      "files": [
+        "python/httpx2-2.16.0/httpx2-2.16.0.dist-info/licenses/LICENSE.md"
+      ]
+    },
+    {
+      "name": "huggingface_hub",
+      "version": "2.4.0",
+      "scope": "runtime",
+      "license_metadata": "Apache-2.0",
+      "project_urls": [],
+      "files": [
+        "python/huggingface-hub-2.4.0/huggingface_hub-2.4.0.dist-info/licenses/LICENSE"
+      ]
+    },
+    {
+      "name": "idna",
+      "version": "3.20",
+      "scope": "runtime",
+      "license_metadata": "BSD-3-Clause",
+      "project_urls": [
+        "Changelog, https://github.com/kjd/idna/blob/master/HISTORY.md",
+        "Issue tracker, https://github.com/kjd/idna/issues",
+        "Source, https://github.com/kjd/idna"
+      ],
+      "files": [
+        "python/idna-3.20/idna-3.20.dist-info/licenses/LICENSE.md"
+      ]
+    },
+    {
+      "name": "numpy",
+      "version": "2.4.6",
+      "scope": "runtime",
+      "license_metadata": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+      "project_urls": [
+        "homepage, https://numpy.org",
+        "documentation, https://numpy.org/doc/",
+        "source, https://github.com/numpy/numpy",
+        "download, https://pypi.org/project/numpy/#files",
+        "tracker, https://github.com/numpy/numpy/issues",
+        "release notes, https://numpy.org/doc/stable/release"
+      ],
+      "files": [
+        "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/LICENSE.txt",
+        "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/_core/include/numpy/libdivide/LICENSE.txt",
+        "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/_core/src/common/pythoncapi-compat/COPYING",
+        "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/_core/src/highway/LICENSE",
+        "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/_core/src/npysort/x86-simd-sort/LICENSE.md",
+        "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/_core/src/umath/svml/LICENSE",
+        "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/fft/pocketfft/LICENSE.md",
+        "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/linalg/lapack_lite/LICENSE.txt",
+        "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/ma/LICENSE",
+        "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/LICENSE.md",
+        "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/distributions/LICENSE.md",
+        "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/mt19937/LICENSE.md",
+        "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/pcg64/LICENSE.md",
+        "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/philox/LICENSE.md",
+        "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/sfc64/LICENSE.md",
+        "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/splitmix64/LICENSE.md",
+        "python/numpy-2.4.6/numpy/_core/include/numpy/random/LICENSE.txt",
+        "python/numpy-2.4.6/numpy/ma/LICENSE",
+        "python/numpy-2.4.6/numpy/random/LICENSE.md"
+      ]
+    },
+    {
+      "name": "onnxruntime",
+      "version": "1.31.1",
+      "scope": "runtime",
+      "license_metadata": "MIT License",
+      "project_urls": [],
+      "files": [
+        "python/onnxruntime-1.31.1/onnxruntime/LICENSE",
+        "python/onnxruntime-1.31.1/onnxruntime/ThirdPartyNotices.txt"
+      ]
+    },
+    {
+      "name": "opencc-python-reimplemented",
+      "version": "0.1.7",
+      "scope": "runtime",
+      "license_metadata": "Apache License",
+      "project_urls": [],
+      "files": [
+        "python/opencc-python-reimplemented-0.1.7/opencc/NOTICE.txt",
+        "python/opencc-python-reimplemented-0.1.7/opencc_python_reimplemented-0.1.7.dist-info/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "packaging",
+      "version": "26.3",
+      "scope": "build-bootloader",
+      "license_metadata": "Apache-2.0 OR BSD-2-Clause",
+      "project_urls": [
+        "Documentation, https://packaging.pypa.io/",
+        "Source, https://github.com/pypa/packaging"
+      ],
+      "files": [
+        "python/packaging-26.3/packaging-26.3.dist-info/licenses/LICENSE",
+        "python/packaging-26.3/packaging-26.3.dist-info/licenses/LICENSE.APACHE",
+        "python/packaging-26.3/packaging-26.3.dist-info/licenses/LICENSE.BSD"
+      ]
+    },
+    {
+      "name": "pefile",
+      "version": "2024.8.26",
+      "scope": "build-bootloader",
+      "license_metadata": "MIT",
+      "project_urls": [],
+      "files": [
+        "python/pefile-2024.8.26/pefile-2024.8.26.dist-info/LICENSE"
+      ]
+    },
+    {
+      "name": "playwright",
+      "version": "1.56.0",
+      "scope": "runtime",
+      "license_metadata": "Apache-2.0",
+      "project_urls": [
+        "homepage, https://github.com/Microsoft/playwright-python",
+        "Release notes, https://github.com/microsoft/playwright-python/releases"
+      ],
+      "files": [
+        "python/playwright-1.56.0/playwright-1.56.0.dist-info/licenses/LICENSE",
+        "python/playwright-1.56.0/playwright/driver/LICENSE",
+        "python/playwright-1.56.0/playwright/driver/package/LICENSE",
+        "python/playwright-1.56.0/playwright/driver/package/NOTICE",
+        "python/playwright-1.56.0/playwright/driver/package/ThirdPartyNotices.txt"
+      ]
+    },
+    {
+      "name": "protobuf",
+      "version": "7.36.2",
+      "scope": "runtime",
+      "license_metadata": "3-Clause BSD License",
+      "project_urls": [],
+      "files": [
+        "python/protobuf-7.36.2/protobuf-7.36.2.dist-info/LICENSE"
+      ]
+    },
+    {
+      "name": "pyee",
+      "version": "13.0.1",
+      "scope": "runtime",
+      "license_metadata": "MIT",
+      "project_urls": [
+        "Repository, https://github.com/jfhbrook/pyee",
+        "Documentation, https://pyee.readthedocs.io"
+      ],
+      "files": [
+        "python/pyee-13.0.1/pyee-13.0.1.dist-info/licenses/LICENSE"
+      ]
+    },
+    {
+      "name": "pyinstaller",
+      "version": "6.22.3",
+      "scope": "build-bootloader",
+      "license_metadata": "GPLv2-or-later with a special exception which allows to use PyInstaller to build and distribute non-free programs (including commercial ones)",
+      "project_urls": [
+        "Homepage, https://pyinstaller.org",
+        "Documentation, https://pyinstaller.org",
+        "Source Code, https://github.com/pyinstaller/pyinstaller",
+        "Release Notes, https://pyinstaller.org/en/stable/CHANGES.html"
+      ],
+      "files": [
+        "python/pyinstaller-6.22.3/pyinstaller-6.22.3.dist-info/licenses/COPYING.txt"
+      ]
+    },
+    {
+      "name": "pyinstaller-hooks-contrib",
+      "version": "2026.9",
+      "scope": "build-bootloader",
+      "license_metadata": null,
+      "project_urls": [],
+      "files": [
+        "python/pyinstaller-hooks-contrib-2026.9/pyinstaller_hooks_contrib-2026.9.dist-info/licenses/LICENSE"
+      ]
+    },
+    {
+      "name": "PySide6",
+      "version": "6.8.3",
+      "scope": "runtime",
+      "license_metadata": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+      "project_urls": [
+        "Homepage, https://pyside.org",
+        "Documentation, https://doc.qt.io/qtforpython",
+        "Repository, https://code.qt.io/cgit/pyside/pyside-setup.git/",
+        "Changelog, https://code.qt.io/cgit/pyside/pyside-setup.git/tree/doc/changelogs",
+        "Tracker, https://bugreports.qt.io/projects/PYSIDE"
+      ],
+      "files": [
+        "python/pyside6-6.8.3/PySide6-6.8.3.dist-info/LicenseRef-Qt-Commercial.txt"
+      ]
+    },
+    {
+      "name": "PySide6_Addons",
+      "version": "6.8.3",
+      "scope": "runtime",
+      "license_metadata": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+      "project_urls": [
+        "Homepage, https://pyside.org",
+        "Documentation, https://doc.qt.io/qtforpython",
+        "Repository, https://code.qt.io/cgit/pyside/pyside-setup.git/",
+        "Changelog, https://code.qt.io/cgit/pyside/pyside-setup.git/tree/doc/changelogs",
+        "Tracker, https://bugreports.qt.io/projects/PYSIDE"
+      ],
+      "files": [
+        "python/pyside6-addons-6.8.3/PySide6_Addons-6.8.3.dist-info/LicenseRef-Qt-Commercial.txt"
+      ]
+    },
+    {
+      "name": "PySide6_Essentials",
+      "version": "6.8.3",
+      "scope": "runtime",
+      "license_metadata": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+      "project_urls": [
+        "Homepage, https://pyside.org",
+        "Documentation, https://doc.qt.io/qtforpython",
+        "Repository, https://code.qt.io/cgit/pyside/pyside-setup.git/",
+        "Changelog, https://code.qt.io/cgit/pyside/pyside-setup.git/tree/doc/changelogs",
+        "Tracker, https://bugreports.qt.io/projects/PYSIDE"
+      ],
+      "files": [
+        "python/pyside6-essentials-6.8.3/PySide6_Essentials-6.8.3.dist-info/LicenseRef-Qt-Commercial.txt"
+      ]
+    },
+    {
+      "name": "pywin32-ctypes",
+      "version": "0.2.3",
+      "scope": "build-bootloader",
+      "license_metadata": "BSD-3-Clause",
+      "project_urls": [],
+      "files": [
+        "python/pywin32-ctypes-0.2.3/pywin32_ctypes-0.2.3.dist-info/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "PyYAML",
+      "version": "6.0.3",
+      "scope": "runtime",
+      "license_metadata": "MIT",
+      "project_urls": [
+        "Bug Tracker, https://github.com/yaml/pyyaml/issues",
+        "CI, https://github.com/yaml/pyyaml/actions",
+        "Documentation, https://pyyaml.org/wiki/PyYAMLDocumentation",
+        "Mailing lists, http://lists.sourceforge.net/lists/listinfo/yaml-core",
+        "Source Code, https://github.com/yaml/pyyaml"
+      ],
+      "files": [
+        "python/pyyaml-6.0.3/pyyaml-6.0.3.dist-info/licenses/LICENSE"
+      ]
+    },
+    {
+      "name": "requests",
+      "version": "2.32.5",
+      "scope": "runtime",
+      "license_metadata": "Apache-2.0",
+      "project_urls": [
+        "Documentation, https://requests.readthedocs.io",
+        "Source, https://github.com/psf/requests"
+      ],
+      "files": [
+        "python/requests-2.32.5/requests-2.32.5.dist-info/licenses/LICENSE"
+      ]
+    },
+    {
+      "name": "setuptools",
+      "version": "84.2.1",
+      "scope": "build-bootloader",
+      "license_metadata": "MIT",
+      "project_urls": [
+        "Source, https://github.com/pypa/setuptools",
+        "Documentation, https://setuptools.pypa.io/",
+        "Changelog, https://setuptools.pypa.io/en/stable/history.html"
+      ],
+      "files": [
+        "python/setuptools-84.2.1/setuptools-84.2.1.dist-info/licenses/LICENSE",
+        "python/setuptools-84.2.1/setuptools/_vendor/autocommand-2.2.2.dist-info/LICENSE",
+        "python/setuptools-84.2.1/setuptools/_vendor/backports.tarfile-1.2.0.dist-info/LICENSE",
+        "python/setuptools-84.2.1/setuptools/_vendor/importlib_metadata-8.7.1.dist-info/licenses/LICENSE",
+        "python/setuptools-84.2.1/setuptools/_vendor/jaraco.text-4.0.0.dist-info/LICENSE",
+        "python/setuptools-84.2.1/setuptools/_vendor/jaraco_context-6.1.0.dist-info/licenses/LICENSE",
+        "python/setuptools-84.2.1/setuptools/_vendor/jaraco_functools-4.4.0.dist-info/licenses/LICENSE",
+        "python/setuptools-84.2.1/setuptools/_vendor/more_itertools-10.8.0.dist-info/licenses/LICENSE",
+        "python/setuptools-84.2.1/setuptools/_vendor/packaging-26.3.dist-info/licenses/LICENSE",
+        "python/setuptools-84.2.1/setuptools/_vendor/packaging-26.3.dist-info/licenses/LICENSE.APACHE",
+        "python/setuptools-84.2.1/setuptools/_vendor/packaging-26.3.dist-info/licenses/LICENSE.BSD",
+        "python/setuptools-84.2.1/setuptools/_vendor/platformdirs-4.4.0.dist-info/licenses/LICENSE",
+        "python/setuptools-84.2.1/setuptools/_vendor/tomli-2.4.0.dist-info/licenses/LICENSE",
+        "python/setuptools-84.2.1/setuptools/_vendor/wheel-0.46.3.dist-info/licenses/LICENSE.txt",
+        "python/setuptools-84.2.1/setuptools/_vendor/zipp-3.23.0.dist-info/licenses/LICENSE",
+        "python/setuptools-84.2.1/setuptools/config/NOTICE",
+        "python/setuptools-84.2.1/setuptools/config/_validate_pyproject/NOTICE"
+      ]
+    },
+    {
+      "name": "shiboken6",
+      "version": "6.8.3",
+      "scope": "runtime",
+      "license_metadata": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+      "project_urls": [
+        "Homepage, https://pyside.org",
+        "Documentation, https://doc.qt.io/qtforpython",
+        "Repository, https://code.qt.io/cgit/pyside/pyside-setup.git/",
+        "Changelog, https://code.qt.io/cgit/pyside/pyside-setup.git/tree/doc/changelogs",
+        "Tracker, https://bugreports.qt.io/projects/PYSIDE"
+      ],
+      "files": [
+        "python/shiboken6-6.8.3/shiboken6-6.8.3.dist-info/LicenseRef-Qt-Commercial.txt"
+      ]
+    },
+    {
+      "name": "tokenizers",
+      "version": "0.23.3",
+      "scope": "runtime",
+      "license_metadata": null,
+      "project_urls": [
+        "Homepage, https://github.com/huggingface/tokenizers",
+        "Source, https://github.com/huggingface/tokenizers"
+      ],
+      "files": [
+        "python/tokenizers-0.23.3/LICENSE"
+      ]
+    },
+    {
+      "name": "tqdm",
+      "version": "4.70.1",
+      "scope": "runtime",
+      "license_metadata": "MPL-2.0 AND MIT",
+      "project_urls": [
+        "homepage, https://tqdm.github.io",
+        "repository, https://github.com/tqdm/tqdm",
+        "changelog, https://tqdm.github.io/releases",
+        "wiki, https://github.com/tqdm/tqdm/wiki"
+      ],
+      "files": [
+        "python/tqdm-4.70.1/tqdm-4.70.1.dist-info/licenses/LICENCE"
+      ]
+    },
+    {
+      "name": "truststore",
+      "version": "0.10.5",
+      "scope": "runtime",
+      "license_metadata": "MIT",
+      "project_urls": [
+        "Documentation, https://truststore.readthedocs.io",
+        "Source, https://github.com/sethmlarson/truststore"
+      ],
+      "files": [
+        "python/truststore-0.10.5/truststore-0.10.5.dist-info/licenses/LICENSE"
+      ]
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0",
+      "scope": "runtime",
+      "license_metadata": "PSF-2.0",
+      "project_urls": [
+        "Bug Tracker, https://github.com/python/typing_extensions/issues",
+        "Changes, https://github.com/python/typing_extensions/blob/main/CHANGELOG.md",
+        "Documentation, https://typing-extensions.readthedocs.io/",
+        "Home, https://github.com/python/typing_extensions",
+        "Q & A, https://github.com/python/typing/discussions",
+        "Repository, https://github.com/python/typing_extensions"
+      ],
+      "files": [
+        "python/typing-extensions-4.16.0/typing_extensions-4.16.0.dist-info/licenses/LICENSE"
+      ]
+    },
+    {
+      "name": "urllib3",
+      "version": "2.8.0",
+      "scope": "runtime",
+      "license_metadata": "MIT",
+      "project_urls": [
+        "Changelog, https://github.com/urllib3/urllib3/blob/main/CHANGES.rst",
+        "Documentation, https://urllib3.readthedocs.io",
+        "Code, https://github.com/urllib3/urllib3",
+        "Issue tracker, https://github.com/urllib3/urllib3/issues",
+        "Security policy, https://urllib3.readthedocs.io/en/latest/security.html"
+      ],
+      "files": [
+        "python/urllib3-2.8.0/urllib3-2.8.0.dist-info/licenses/LICENSE.txt"
+      ]
+    },
+    {
+      "name": "yt-dlp",
+      "version": "2026.10.26",
+      "scope": "runtime",
+      "license_metadata": "Unlicense",
+      "project_urls": [
+        "Documentation, https://github.com/yt-dlp/yt-dlp#readme",
+        "Repository, https://github.com/yt-dlp/yt-dlp",
+        "Tracker, https://github.com/yt-dlp/yt-dlp/issues",
+        "Funding, https://github.com/yt-dlp/yt-dlp/blob/master/Maintainers.md#maintainers"
+      ],
+      "files": [
+        "python/yt-dlp-2026.10.26/yt_dlp-2026.10.26.dist-info/licenses/LICENSE"
+      ]
+    }
+  ],
+  "components": [
+    {
+      "name": "Chromium",
+      "version": "141.0.7390.37",
+      "playwright_revision": "chromium-1194",
+      "chrome_dll_sha256": "144305f0fb6353d8c7b998359a20782315db0af00a4811c5473d48e0a97434fe",
+      "embedded_license_blocks": 557,
+      "notice_source": "bundled-browser:chrome://credits/",
+      "source": "https://chromium.googlesource.com/chromium/src/+/141.0.7390.37"
+    },
+    {
+      "name": "ffmpeg",
+      "version": "ffmpeg version n8.1.3-32-g760d10603e-20261102 Copyright (c) 2000-2026 the FFmpeg developers",
+      "sha256": "459fd38d9f04468109c6aa41198e44160838f0068c4f7930136c5e704404d505",
+      "source": "https://github.com/FFmpeg/FFmpeg/tree/760d10603e",
+      "build_output": "ffmpeg-760d10603e/ffmpeg-build.txt",
+      "supplier": "https://github.com/BtbN/FFmpeg-Builds"
+    },
+    {
+      "name": "ffprobe",
+      "version": "ffprobe version n8.1.3-32-g760d10603e-20261102 Copyright (c) 2007-2026 the FFmpeg developers",
+      "sha256": "a997340a5848d0369f065c096f237ae08a46429d95c1a28bdcdf7a35ff910f3c",
+      "source": "https://github.com/FFmpeg/FFmpeg/tree/760d10603e",
+      "build_output": "ffmpeg-760d10603e/ffprobe-build.txt",
+      "supplier": "https://github.com/BtbN/FFmpeg-Builds"
+    },
+    {
+      "name": "Noto Sans SC OTF",
+      "sha256": "2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b",
+      "source": "https://github.com/notofonts/noto-cjk",
+      "license": "OFL-1.1"
+    },
+    {
+      "name": "Python",
+      "version": "3.11.15",
+      "source": "https://github.com/python/cpython/tree/v3.11.15"
+    },
+    {
+      "name": "yt-dlp executable",
+      "version": "2026.10.26",
+      "sha256": "f5389d3698ecde4ef06f4e6b1ce0294fe9ac1396228c8990b8d3416d6d177a7d",
+      "source": "https://github.com/yt-dlp/yt-dlp/releases/tag/2026.10.26"
+    }
+  ],
+  "files": [
+    {
+      "path": "chromium-1194/THIRD-PARTY-NOTICES.txt",
+      "sha256": "fef84772f67ba68c3f9b02983efcc8a110020cfe1456cf4285c9062d7de1d245",
+      "bytes": 14642739,
+      "source": "bundled-browser:chrome://credits/ (all hidden license blocks included)"
+    },
+    {
+      "path": "chromium-1194/build.json",
+      "sha256": "f4b7aa72adf3ba450cc5c9f61a47463902dfe85179f6e736ef7150aa8ff70a86",
+      "bytes": 356,
+      "source": "bundled-browser:version and embedded credits"
+    },
+    {
+      "path": "ffmpeg-760d10603e/COPYING.GPLv2",
+      "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+      "bytes": 18092,
+      "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/760d10603e/COPYING.GPLv2"
+    },
+    {
+      "path": "ffmpeg-760d10603e/COPYING.GPLv3",
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+      "bytes": 35147,
+      "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/760d10603e/COPYING.GPLv3"
+    },
+    {
+      "path": "ffmpeg-760d10603e/COPYING.LGPLv2.1",
+      "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30",
+      "bytes": 26517,
+      "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/760d10603e/COPYING.LGPLv2.1"
+    },
+    {
+      "path": "ffmpeg-760d10603e/COPYING.LGPLv3",
+      "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768",
+      "bytes": 7651,
+      "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/760d10603e/COPYING.LGPLv3"
+    },
+    {
+      "path": "ffmpeg-760d10603e/CREDITS",
+      "sha256": "28ecc96d495fa5ad48c76739a8f8d2c8980548d7a171585a6eb3f27a9ac8e4a2",
+      "bytes": 277,
+      "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/760d10603e/CREDITS"
+    },
+    {
+      "path": "ffmpeg-760d10603e/LICENSE.md",
+      "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af",
+      "bytes": 4346,
+      "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/760d10603e/LICENSE.md"
+    },
+    {
+      "path": "ffmpeg-760d10603e/SUPPLIER-LICENSE.txt",
+      "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768",
+      "bytes": 7651,
+      "source": "staged-tool:tools/LICENSE.txt"
+    },
+    {
+      "path": "ffmpeg-760d10603e/ffmpeg-build.txt",
+      "sha256": "b0c8824a79a6960c807b8c4ad814bc35f65da1e416a1f9f081103865ce249f1d",
+      "bytes": 2419,
+      "source": "staged-tool:ffmpeg.exe -version"
+    },
+    {
+      "path": "ffmpeg-760d10603e/ffprobe-build.txt",
+      "sha256": "160d9a3a9b63075ff8f1514750c62101c8c0e93761bcc273b40b227a5021b3fc",
+      "bytes": 2394,
+      "source": "staged-tool:ffprobe.exe -version"
+    },
+    {
+      "path": "font-noto-sans-sc/OFL-Noto.txt",
+      "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+      "bytes": 4301,
+      "source": "staged-font:OFL-Noto.txt"
+    },
+    {
+      "path": "python-runtime-3.11.15/LICENSE.txt",
+      "sha256": "886a0ead2d89030ee62dbff52b04e47ab91998341295bb9c56fb952b4e081c7a",
+      "bytes": 25066,
+      "source": "installed-python:LICENSE.txt"
+    },
+    {
+      "path": "python/altgraph-0.17.5/altgraph-0.17.5.dist-info/LICENSE",
+      "sha256": "6c194d6db0c64d45535d10c95142b9b0cda7b7dcc7f1ddee302b3d536f3dbe46",
+      "bytes": 1002,
+      "source": "installed-wheel:altgraph==0.17.5/altgraph-0.17.5.dist-info/LICENSE"
+    },
+    {
+      "path": "python/anyio-4.16.0/anyio-4.16.0.dist-info/licenses/LICENSE",
+      "sha256": "5361ac9dc58f2ef5fd2e9b09c68297c17f04950909bbc8023bdb82eacf22c2b0",
+      "bytes": 1081,
+      "source": "installed-wheel:anyio==4.16.0/anyio-4.16.0.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/av-14.2.0/av-14.2.0.dist-info/AUTHORS.rst",
+      "sha256": "a796ebbc2c365eb92bcd7b4b7539549958e7255be2bc12cd2ead76719c7b5f1b",
+      "bytes": 5083,
+      "source": "installed-wheel:av==14.2.0/av-14.2.0.dist-info/AUTHORS.rst"
+    },
+    {
+      "path": "python/av-14.2.0/av-14.2.0.dist-info/LICENSE.txt",
+      "sha256": "f32ebcb6007dcc05eea369b3820e6391b0a7ef1ed763f30f1aca15dfdbacbe96",
+      "bytes": 1528,
+      "source": "installed-wheel:av==14.2.0/av-14.2.0.dist-info/LICENSE.txt"
+    },
+    {
+      "path": "python/certifi-2026.10.23/certifi-2026.10.23.dist-info/licenses/LICENSE",
+      "sha256": "e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7",
+      "bytes": 989,
+      "source": "installed-wheel:certifi==2026.10.23/certifi-2026.10.23.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/charset-normalizer-3.5.2/charset_normalizer-3.5.2.dist-info/licenses/LICENSE",
+      "sha256": "18577485d3704f1a479ded8e573c0976cfed315fd2fd17983fa988da4c2f70d1",
+      "bytes": 1092,
+      "source": "installed-wheel:charset-normalizer==3.5.2/charset_normalizer-3.5.2.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/click-8.5.0/click-8.5.0.dist-info/licenses/LICENSE.txt",
+      "sha256": "9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d",
+      "bytes": 1475,
+      "source": "installed-wheel:click==8.5.0/click-8.5.0.dist-info/licenses/LICENSE.txt"
+    },
+    {
+      "path": "python/colorama-0.4.6/colorama-0.4.6.dist-info/licenses/LICENSE.txt",
+      "sha256": "cac35c02686e5d04a5a7140bfb3b36e73aed496656e891102e428886d7930318",
+      "bytes": 1491,
+      "source": "installed-wheel:colorama==0.4.6/colorama-0.4.6.dist-info/licenses/LICENSE.txt"
+    },
+    {
+      "path": "python/ctranslate2-4.8.5/LICENSE",
+      "sha256": "54aa79d9fe3c09e67a16dcd95b9e88676405a6ec174efda31036983cf7672ecb",
+      "bytes": 1115,
+      "source": "https://raw.githubusercontent.com/OpenNMT/CTranslate2/v4.8.5/LICENSE"
+    },
+    {
+      "path": "python/faster-whisper-1.2.1/faster_whisper-1.2.1.dist-info/LICENSE",
+      "sha256": "af6798135e729f8aa6c853936d037dfdea449734d26b8ea6a89805fca758c0d5",
+      "bytes": 1064,
+      "source": "installed-wheel:faster-whisper==1.2.1/faster_whisper-1.2.1.dist-info/LICENSE"
+    },
+    {
+      "path": "python/filelock-4.2.7/filelock-4.2.7.dist-info/licenses/LICENSE",
+      "sha256": "608c89d5060ae9921adccf3236695bc654a9946e12323ef6c021dfa04e294d48",
+      "bytes": 1088,
+      "source": "installed-wheel:filelock==4.2.7/filelock-4.2.7.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/flatbuffers-25.12.19/LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "bytes": 11358,
+      "source": "https://raw.githubusercontent.com/google/flatbuffers/v25.12.19/LICENSE"
+    },
+    {
+      "path": "python/fsspec-2026.9.0/fsspec-2026.9.0.dist-info/licenses/LICENSE",
+      "sha256": "2dc35496ce53a7307915c008a844aad53e772b49b34cdd00445067691407ec94",
+      "bytes": 1513,
+      "source": "installed-wheel:fsspec==2026.9.0/fsspec-2026.9.0.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/greenlet-3.5.6/greenlet-3.5.6.dist-info/licenses/LICENSE",
+      "sha256": "ab977b654605670319509481ece49198f405a129372ac38c96f51cd96c2f452e",
+      "bytes": 1464,
+      "source": "installed-wheel:greenlet==3.5.6/greenlet-3.5.6.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/greenlet-3.5.6/greenlet-3.5.6.dist-info/licenses/LICENSE.PSF",
+      "sha256": "69efa689cc7aec7736236d3039c1d665e4b0c734a5bfea5abf633023abb2fff4",
+      "bytes": 2471,
+      "source": "installed-wheel:greenlet==3.5.6/greenlet-3.5.6.dist-info/licenses/LICENSE.PSF"
+    },
+    {
+      "path": "python/h11-0.16.0/h11-0.16.0.dist-info/licenses/LICENSE.txt",
+      "sha256": "37db5bb85926db28a427a25867f10b1232003aea1be69ccb851138adb8e6f361",
+      "bytes": 1124,
+      "source": "installed-wheel:h11==0.16.0/h11-0.16.0.dist-info/licenses/LICENSE.txt"
+    },
+    {
+      "path": "python/hf-xet-1.8.0/hf_xet-1.8.0.dist-info/licenses/LICENSE",
+      "sha256": "1eb85fc97224598dad1852b5d6483bbcf0aa8608790dcc657a5a2a761ae9c8c6",
+      "bytes": 11558,
+      "source": "installed-wheel:hf-xet==1.8.0/hf_xet-1.8.0.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/httpcore2-2.16.0/httpcore2-2.16.0.dist-info/licenses/LICENSE.md",
+      "sha256": "c4df125c807b0613501e943a5c92496dd11d2c16604ce396097a8dde396304d9",
+      "bytes": 1599,
+      "source": "installed-wheel:httpcore2==2.16.0/httpcore2-2.16.0.dist-info/licenses/LICENSE.md"
+    },
+    {
+      "path": "python/httpx2-2.16.0/httpx2-2.16.0.dist-info/licenses/LICENSE.md",
+      "sha256": "7e7d6dbaf7fe160d39fd6e84fd02c33cab96bcbea34d36998d545bceb4a19c30",
+      "bytes": 1589,
+      "source": "installed-wheel:httpx2==2.16.0/httpx2-2.16.0.dist-info/licenses/LICENSE.md"
+    },
+    {
+      "path": "python/huggingface-hub-2.4.0/huggingface_hub-2.4.0.dist-info/licenses/LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357,
+      "source": "installed-wheel:huggingface_hub==2.4.0/huggingface_hub-2.4.0.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/idna-3.20/idna-3.20.dist-info/licenses/LICENSE.md",
+      "sha256": "1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04",
+      "bytes": 1541,
+      "source": "installed-wheel:idna==3.20/idna-3.20.dist-info/licenses/LICENSE.md"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/LICENSE.txt",
+      "sha256": "a804dff0ead9fadc5293456410bcbfc32bf024be9c4513459663fb7b442d2341",
+      "bytes": 45831,
+      "source": "installed-wheel:numpy==2.4.6/numpy-2.4.6.dist-info/licenses/LICENSE.txt"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/_core/include/numpy/libdivide/LICENSE.txt",
+      "sha256": "d544761558b510866c21f7e8a2d5716fca76e0b98117e3b6b86314db7244d150",
+      "bytes": 1039,
+      "source": "installed-wheel:numpy==2.4.6/numpy-2.4.6.dist-info/licenses/numpy/_core/include/numpy/libdivide/LICENSE.txt"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/_core/src/common/pythoncapi-compat/COPYING",
+      "sha256": "aea41976c720f91bd19725c16916a1ace40eb1ea42620d340e587a5de4bbcea0",
+      "bytes": 704,
+      "source": "installed-wheel:numpy==2.4.6/numpy-2.4.6.dist-info/licenses/numpy/_core/src/common/pythoncapi-compat/COPYING"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/_core/src/highway/LICENSE",
+      "sha256": "d208152e2777ffd0126eacc1bd21c0320d69e4e6b622d21a2a12a47e8ef73763",
+      "bytes": 21155,
+      "source": "installed-wheel:numpy==2.4.6/numpy-2.4.6.dist-info/licenses/numpy/_core/src/highway/LICENSE"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/_core/src/npysort/x86-simd-sort/LICENSE.md",
+      "sha256": "a732977853530066790c42817087f4829b518dd98d340c916acbfd227e39d3cb",
+      "bytes": 1542,
+      "source": "installed-wheel:numpy==2.4.6/numpy-2.4.6.dist-info/licenses/numpy/_core/src/npysort/x86-simd-sort/LICENSE.md"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/_core/src/umath/svml/LICENSE",
+      "sha256": "585483905b13d4b42f800c55ba99e89d6e2e33ccd5f503e201c07531d148ff41",
+      "bytes": 1573,
+      "source": "installed-wheel:numpy==2.4.6/numpy-2.4.6.dist-info/licenses/numpy/_core/src/umath/svml/LICENSE"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/fft/pocketfft/LICENSE.md",
+      "sha256": "8db000e158c162e7249787852d8c69764706502ccee725c06641b31c1e95c8af",
+      "bytes": 1523,
+      "source": "installed-wheel:numpy==2.4.6/numpy-2.4.6.dist-info/licenses/numpy/fft/pocketfft/LICENSE.md"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/linalg/lapack_lite/LICENSE.txt",
+      "sha256": "19060ef465e1797d682ee0fc3081bd25ab1395e995e43d25c9d13c95d9a3cd6b",
+      "bytes": 2314,
+      "source": "installed-wheel:numpy==2.4.6/numpy-2.4.6.dist-info/licenses/numpy/linalg/lapack_lite/LICENSE.txt"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/ma/LICENSE",
+      "sha256": "d78dbb208b80d92b4d333e41a4baae50d12444f46e53199fa7726a91de6e2da7",
+      "bytes": 1616,
+      "source": "installed-wheel:numpy==2.4.6/numpy-2.4.6.dist-info/licenses/numpy/ma/LICENSE"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/LICENSE.md",
+      "sha256": "b4bc2f4fa1c95778f1ed3dd8f14706bece399475b978f9f34b5d3cd72521b48a",
+      "bytes": 3582,
+      "source": "installed-wheel:numpy==2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/LICENSE.md"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/distributions/LICENSE.md",
+      "sha256": "cf5619f25b112d5ce7c896efffc8e610bcb345dfadcc19f2c1460aa48fff2c9e",
+      "bytes": 2805,
+      "source": "installed-wheel:numpy==2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/distributions/LICENSE.md"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/mt19937/LICENSE.md",
+      "sha256": "92c10699884321f1c2947fe2a70ab23b0fbf1507f756d89dd08f38c61fc3d4fa",
+      "bytes": 2986,
+      "source": "installed-wheel:numpy==2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/mt19937/LICENSE.md"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/pcg64/LICENSE.md",
+      "sha256": "41190663b77bee5302386495a07b7eabfbfa571aa0ae2f11da6764162062fc4f",
+      "bytes": 1176,
+      "source": "installed-wheel:numpy==2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/pcg64/LICENSE.md"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/philox/LICENSE.md",
+      "sha256": "322ac46d870c8aeead6c53adcccc839296fb3c8e456eae155081297daf7f8013",
+      "bytes": 1540,
+      "source": "installed-wheel:numpy==2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/philox/LICENSE.md"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/sfc64/LICENSE.md",
+      "sha256": "28cad82ce1379dc529df30da78ec012d7d0d1d576b03ddcb93388aee53659f59",
+      "bytes": 1253,
+      "source": "installed-wheel:numpy==2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/sfc64/LICENSE.md"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/splitmix64/LICENSE.md",
+      "sha256": "454ec7350e478e037061850b67395753b425b1cb0a34bbc26290b020bf89d763",
+      "bytes": 340,
+      "source": "installed-wheel:numpy==2.4.6/numpy-2.4.6.dist-info/licenses/numpy/random/src/splitmix64/LICENSE.md"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy/_core/include/numpy/random/LICENSE.txt",
+      "sha256": "d544761558b510866c21f7e8a2d5716fca76e0b98117e3b6b86314db7244d150",
+      "bytes": 1039,
+      "source": "installed-wheel:numpy==2.4.6/numpy/_core/include/numpy/random/LICENSE.txt"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy/ma/LICENSE",
+      "sha256": "d78dbb208b80d92b4d333e41a4baae50d12444f46e53199fa7726a91de6e2da7",
+      "bytes": 1616,
+      "source": "installed-wheel:numpy==2.4.6/numpy/ma/LICENSE"
+    },
+    {
+      "path": "python/numpy-2.4.6/numpy/random/LICENSE.md",
+      "sha256": "b4bc2f4fa1c95778f1ed3dd8f14706bece399475b978f9f34b5d3cd72521b48a",
+      "bytes": 3582,
+      "source": "installed-wheel:numpy==2.4.6/numpy/random/LICENSE.md"
+    },
+    {
+      "path": "python/onnxruntime-1.31.1/onnxruntime/LICENSE",
+      "sha256": "c250d6278f0b47a6439fb7592b08b58a55eb9f535aa49a1db63211c3f982b674",
+      "bytes": 1094,
+      "source": "installed-wheel:onnxruntime==1.31.1/onnxruntime/LICENSE"
+    },
+    {
+      "path": "python/onnxruntime-1.31.1/onnxruntime/ThirdPartyNotices.txt",
+      "sha256": "c53a76501ef60db6f865f20599f220761201ac4057683acefdab37d861b86622",
+      "bytes": 344457,
+      "source": "installed-wheel:onnxruntime==1.31.1/onnxruntime/ThirdPartyNotices.txt"
+    },
+    {
+      "path": "python/opencc-python-reimplemented-0.1.7/opencc/NOTICE.txt",
+      "sha256": "afcbc6ee2d4fa9c2e9d5944b53ca05d3cc06bab6d082817c689bdfa33c38fcb0",
+      "bytes": 149,
+      "source": "installed-wheel:opencc-python-reimplemented==0.1.7/opencc/NOTICE.txt"
+    },
+    {
+      "path": "python/opencc-python-reimplemented-0.1.7/opencc_python_reimplemented-0.1.7.dist-info/LICENSE.txt",
+      "sha256": "18f3fedf9eac72e6054260489c764c1e54f63cf2b16055523f561ffeec7bc908",
+      "bytes": 10354,
+      "source": "installed-wheel:opencc-python-reimplemented==0.1.7/opencc_python_reimplemented-0.1.7.dist-info/LICENSE.txt"
+    },
+    {
+      "path": "python/packaging-26.3/packaging-26.3.dist-info/licenses/LICENSE",
+      "sha256": "cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48",
+      "bytes": 197,
+      "source": "installed-wheel:packaging==26.3/packaging-26.3.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/packaging-26.3/packaging-26.3.dist-info/licenses/LICENSE.APACHE",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "bytes": 10174,
+      "source": "installed-wheel:packaging==26.3/packaging-26.3.dist-info/licenses/LICENSE.APACHE"
+    },
+    {
+      "path": "python/packaging-26.3/packaging-26.3.dist-info/licenses/LICENSE.BSD",
+      "sha256": "b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5",
+      "bytes": 1344,
+      "source": "installed-wheel:packaging==26.3/packaging-26.3.dist-info/licenses/LICENSE.BSD"
+    },
+    {
+      "path": "python/pefile-2024.8.26/pefile-2024.8.26.dist-info/LICENSE",
+      "sha256": "b44409c067c6da52bfb54bb6624fb11a7b52157c3a13ae1400232f8196e86ad3",
+      "bytes": 1083,
+      "source": "installed-wheel:pefile==2024.8.26/pefile-2024.8.26.dist-info/LICENSE"
+    },
+    {
+      "path": "python/playwright-1.56.0/playwright-1.56.0.dist-info/licenses/LICENSE",
+      "sha256": "7fab1461b41970ff376f1c9303a637076bfaaeb71cd12dd3a1c44aaf59a1a2b9",
+      "bytes": 11399,
+      "source": "installed-wheel:playwright==1.56.0/playwright-1.56.0.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/playwright-1.56.0/playwright/driver/LICENSE",
+      "sha256": "339c50294da6a84322dcbe7285b57b248123bd4d9e37a2f72d68d5abf2574783",
+      "bytes": 145965,
+      "source": "installed-wheel:playwright==1.56.0/playwright/driver/LICENSE"
+    },
+    {
+      "path": "python/playwright-1.56.0/playwright/driver/package/LICENSE",
+      "sha256": "45873d00a0dd243596deb4aa23b2493b3d1f0671921bf2538ea431d7380220eb",
+      "bytes": 11601,
+      "source": "installed-wheel:playwright==1.56.0/playwright/driver/package/LICENSE"
+    },
+    {
+      "path": "python/playwright-1.56.0/playwright/driver/package/NOTICE",
+      "sha256": "6d602191187b35b9b01d2cffa01c8469c2c8d9de8a96f1bf868e0f264f51c81d",
+      "bytes": 254,
+      "source": "installed-wheel:playwright==1.56.0/playwright/driver/package/NOTICE"
+    },
+    {
+      "path": "python/playwright-1.56.0/playwright/driver/package/ThirdPartyNotices.txt",
+      "sha256": "450299275b0e56be82eb14dbec79a2395dfe956f8e3c0a35f901163c4eef036e",
+      "bytes": 70260,
+      "source": "installed-wheel:playwright==1.56.0/playwright/driver/package/ThirdPartyNotices.txt"
+    },
+    {
+      "path": "python/protobuf-7.36.2/protobuf-7.36.2.dist-info/LICENSE",
+      "sha256": "6e5e117324afd944dcf67f36cf329843bc1a92229a8cd9bb573d7a83130fea7d",
+      "bytes": 1732,
+      "source": "installed-wheel:protobuf==7.36.2/protobuf-7.36.2.dist-info/LICENSE"
+    },
+    {
+      "path": "python/pyee-13.0.1/pyee-13.0.1.dist-info/licenses/LICENSE",
+      "sha256": "1ff556ca206b107f10e1c562ae454d3292e0296c3510eb90eb7f114caee32a66",
+      "bytes": 1080,
+      "source": "installed-wheel:pyee==13.0.1/pyee-13.0.1.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/pyinstaller-6.22.3/pyinstaller-6.22.3.dist-info/licenses/COPYING.txt",
+      "sha256": "0598064c7d2718e38d7914a7d08343b2fa008e3bea9ebba2aa7a6ffa5900dd64",
+      "bytes": 32604,
+      "source": "installed-wheel:pyinstaller==6.22.3/pyinstaller-6.22.3.dist-info/licenses/COPYING.txt"
+    },
+    {
+      "path": "python/pyinstaller-hooks-contrib-2026.9/pyinstaller_hooks_contrib-2026.9.dist-info/licenses/LICENSE",
+      "sha256": "91d0baaff00773038e72c0a1fc9d5d2d38706b7a2b9c04f34296608f931b9cd0",
+      "bytes": 27666,
+      "source": "installed-wheel:pyinstaller-hooks-contrib==2026.9/pyinstaller_hooks_contrib-2026.9.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/pyside6-6.8.3/PySide6-6.8.3.dist-info/LicenseRef-Qt-Commercial.txt",
+      "sha256": "4f54763ac0fe2abd8f7f8d8fe370a94a08ebf84786aa0b91045bd6628deb08a3",
+      "bytes": 470,
+      "source": "installed-wheel:PySide6==6.8.3/PySide6-6.8.3.dist-info/LicenseRef-Qt-Commercial.txt"
+    },
+    {
+      "path": "python/pyside6-addons-6.8.3/PySide6_Addons-6.8.3.dist-info/LicenseRef-Qt-Commercial.txt",
+      "sha256": "4f54763ac0fe2abd8f7f8d8fe370a94a08ebf84786aa0b91045bd6628deb08a3",
+      "bytes": 470,
+      "source": "installed-wheel:PySide6_Addons==6.8.3/PySide6_Addons-6.8.3.dist-info/LicenseRef-Qt-Commercial.txt"
+    },
+    {
+      "path": "python/pyside6-essentials-6.8.3/PySide6_Essentials-6.8.3.dist-info/LicenseRef-Qt-Commercial.txt",
+      "sha256": "4f54763ac0fe2abd8f7f8d8fe370a94a08ebf84786aa0b91045bd6628deb08a3",
+      "bytes": 470,
+      "source": "installed-wheel:PySide6_Essentials==6.8.3/PySide6_Essentials-6.8.3.dist-info/LicenseRef-Qt-Commercial.txt"
+    },
+    {
+      "path": "python/pywin32-ctypes-0.2.3/pywin32_ctypes-0.2.3.dist-info/LICENSE.txt",
+      "sha256": "dfa83b3e2709adfcdb838d9ad55823ca674abb780e60563d9dd9544ccbf785e9",
+      "bytes": 1644,
+      "source": "installed-wheel:pywin32-ctypes==0.2.3/pywin32_ctypes-0.2.3.dist-info/LICENSE.txt"
+    },
+    {
+      "path": "python/pyyaml-6.0.3/pyyaml-6.0.3.dist-info/licenses/LICENSE",
+      "sha256": "8d3928f9dc4490fd635707cb88eb26bd764102a7282954307d3e5167a577e8a4",
+      "bytes": 1101,
+      "source": "installed-wheel:PyYAML==6.0.3/pyyaml-6.0.3.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/requests-2.32.5/requests-2.32.5.dist-info/licenses/LICENSE",
+      "sha256": "09e8a9bcec8067104652c168685ab0931e7868f9c8284b66f5ae6edae5f1130b",
+      "bytes": 10142,
+      "source": "installed-wheel:requests==2.32.5/requests-2.32.5.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools-84.2.1.dist-info/licenses/LICENSE",
+      "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741",
+      "bytes": 1023,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools-84.2.1.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools/_vendor/autocommand-2.2.2.dist-info/LICENSE",
+      "sha256": "ade78d04982d69972d444a8e14a94f87a2334dd3855cc80348ea8e240aa0df2d",
+      "bytes": 7634,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools/_vendor/autocommand-2.2.2.dist-info/LICENSE"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools/_vendor/backports.tarfile-1.2.0.dist-info/LICENSE",
+      "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741",
+      "bytes": 1023,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools/_vendor/backports.tarfile-1.2.0.dist-info/LICENSE"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools/_vendor/importlib_metadata-8.7.1.dist-info/licenses/LICENSE",
+      "sha256": "458502e12d97bbf64438606a20044aa85eb05fb0a8a807bb35dbec253fd1fc04",
+      "bytes": 10278,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools/_vendor/importlib_metadata-8.7.1.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools/_vendor/jaraco.text-4.0.0.dist-info/LICENSE",
+      "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741",
+      "bytes": 1023,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools/_vendor/jaraco.text-4.0.0.dist-info/LICENSE"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools/_vendor/jaraco_context-6.1.0.dist-info/licenses/LICENSE",
+      "sha256": "9755a18519666e5f0f4cae3daad3d7012bcae48a600b31237d75e9fe134e6683",
+      "bytes": 1076,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools/_vendor/jaraco_context-6.1.0.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools/_vendor/jaraco_functools-4.4.0.dist-info/licenses/LICENSE",
+      "sha256": "5a57cb4db85e2a2dd88c290628908add57e3451449e0a9a71fdfb38776fd759d",
+      "bytes": 1076,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools/_vendor/jaraco_functools-4.4.0.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools/_vendor/more_itertools-10.8.0.dist-info/licenses/LICENSE",
+      "sha256": "09f1c8c9e941af3e584d59641ea9b87d83c0cb0fd007eb5ef391a7e2643c1a46",
+      "bytes": 1053,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools/_vendor/more_itertools-10.8.0.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools/_vendor/packaging-26.3.dist-info/licenses/LICENSE",
+      "sha256": "cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48",
+      "bytes": 197,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools/_vendor/packaging-26.3.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools/_vendor/packaging-26.3.dist-info/licenses/LICENSE.APACHE",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "bytes": 10174,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools/_vendor/packaging-26.3.dist-info/licenses/LICENSE.APACHE"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools/_vendor/packaging-26.3.dist-info/licenses/LICENSE.BSD",
+      "sha256": "b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5",
+      "bytes": 1344,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools/_vendor/packaging-26.3.dist-info/licenses/LICENSE.BSD"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools/_vendor/platformdirs-4.4.0.dist-info/licenses/LICENSE",
+      "sha256": "29e0fd62e929850e86eb28c3fdccf0cefdf4fa94879011cffb3d0d4bed6d4db6",
+      "bytes": 1089,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools/_vendor/platformdirs-4.4.0.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools/_vendor/tomli-2.4.0.dist-info/licenses/LICENSE",
+      "sha256": "b80816b0d530b8accb4c2211783790984a6e3b61922c2b5ee92f3372ab2742fe",
+      "bytes": 1072,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools/_vendor/tomli-2.4.0.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools/_vendor/wheel-0.46.3.dist-info/licenses/LICENSE.txt",
+      "sha256": "30c23618679108f3e8ea1d2a658c7ca417bdfc891c98ef1a89fa4ff0c9828654",
+      "bytes": 1107,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools/_vendor/wheel-0.46.3.dist-info/licenses/LICENSE.txt"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools/_vendor/zipp-3.23.0.dist-info/licenses/LICENSE",
+      "sha256": "5a57cb4db85e2a2dd88c290628908add57e3451449e0a9a71fdfb38776fd759d",
+      "bytes": 1076,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools/_vendor/zipp-3.23.0.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools/config/NOTICE",
+      "sha256": "2dddf08818297a3b89d43d95ff659d8da85741108c9136dfa3a4d856c0623bd8",
+      "bytes": 493,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools/config/NOTICE"
+    },
+    {
+      "path": "python/setuptools-84.2.1/setuptools/config/_validate_pyproject/NOTICE",
+      "sha256": "09c9bcea95ca086f8bc5bed174e40bc835b297d40fb5f86bbbb570fe0a5581a7",
+      "bytes": 18737,
+      "source": "installed-wheel:setuptools==84.2.1/setuptools/config/_validate_pyproject/NOTICE"
+    },
+    {
+      "path": "python/shiboken6-6.8.3/shiboken6-6.8.3.dist-info/LicenseRef-Qt-Commercial.txt",
+      "sha256": "4f54763ac0fe2abd8f7f8d8fe370a94a08ebf84786aa0b91045bd6628deb08a3",
+      "bytes": 470,
+      "source": "installed-wheel:shiboken6==6.8.3/shiboken6-6.8.3.dist-info/LicenseRef-Qt-Commercial.txt"
+    },
+    {
+      "path": "python/tokenizers-0.23.3/LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357,
+      "source": "https://raw.githubusercontent.com/huggingface/tokenizers/v0.23.3/LICENSE"
+    },
+    {
+      "path": "python/tqdm-4.70.1/tqdm-4.70.1.dist-info/licenses/LICENCE",
+      "sha256": "fcff87c3a47ce8028a8512aa182d4fcf0ad1c90544ee75cf9b343684cac194de",
+      "bytes": 1985,
+      "source": "installed-wheel:tqdm==4.70.1/tqdm-4.70.1.dist-info/licenses/LICENCE"
+    },
+    {
+      "path": "python/truststore-0.10.5/truststore-0.10.5.dist-info/licenses/LICENSE",
+      "sha256": "33be7b7e8fa4fd19b1760e1a8ed8a668bdab852c91b692dd41424bcb725a9fca",
+      "bytes": 1086,
+      "source": "installed-wheel:truststore==0.10.5/truststore-0.10.5.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/typing-extensions-4.16.0/typing_extensions-4.16.0.dist-info/licenses/LICENSE",
+      "sha256": "3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf",
+      "bytes": 13936,
+      "source": "installed-wheel:typing_extensions==4.16.0/typing_extensions-4.16.0.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "python/urllib3-2.8.0/urllib3-2.8.0.dist-info/licenses/LICENSE.txt",
+      "sha256": "130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686",
+      "bytes": 1093,
+      "source": "installed-wheel:urllib3==2.8.0/urllib3-2.8.0.dist-info/licenses/LICENSE.txt"
+    },
+    {
+      "path": "python/yt-dlp-2026.10.26/yt_dlp-2026.10.26.dist-info/licenses/LICENSE",
+      "sha256": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c",
+      "bytes": 1211,
+      "source": "installed-wheel:yt-dlp==2026.10.26/yt_dlp-2026.10.26.dist-info/licenses/LICENSE"
+    },
+    {
+      "path": "qt-6.8.3/GFDL-1.3-no-invariants-only.txt",
+      "sha256": "110535522396708cea37c72a802c5e7e81391139f5f7985631c93ef242b206a4",
+      "bytes": 22955,
+      "source": "https://raw.githubusercontent.com/pyside/pyside-setup/v6.8.3/LICENSES/GFDL-1.3-no-invariants-only.txt"
+    },
+    {
+      "path": "qt-6.8.3/GPL-2.0-only.txt",
+      "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+      "bytes": 18092,
+      "source": "https://raw.githubusercontent.com/pyside/pyside-setup/v6.8.3/LICENSES/GPL-2.0-only.txt"
+    },
+    {
+      "path": "qt-6.8.3/GPL-3.0-only.txt",
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+      "bytes": 35147,
+      "source": "https://raw.githubusercontent.com/pyside/pyside-setup/v6.8.3/LICENSES/GPL-3.0-only.txt"
+    },
+    {
+      "path": "qt-6.8.3/LGPL-3.0-only.txt",
+      "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768",
+      "bytes": 7651,
+      "source": "https://raw.githubusercontent.com/pyside/pyside-setup/v6.8.3/LICENSES/LGPL-3.0-only.txt"
+    },
+    {
+      "path": "qt-6.8.3/Qt-GPL-exception-1.0.txt",
+      "sha256": "40678d338ce53cd93f8b22b281a2ecbcaa3ee65ce60b25ffb0c462b0530846b2",
+      "bytes": 965,
+      "source": "https://raw.githubusercontent.com/pyside/pyside-setup/v6.8.3/LICENSES/Qt-GPL-exception-1.0.txt"
+    },
+    {
+      "path": "yt-dlp-2026.10.26/LICENSE",
+      "sha256": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c",
+      "bytes": 1211,
+      "source": "https://raw.githubusercontent.com/yt-dlp/yt-dlp/2026.10.26/LICENSE"
+    },
+    {
+      "path": "yt-dlp-2026.10.26/THIRD_PARTY_LICENSES.txt",
+      "sha256": "472aefe951c7db35e1657c1d13fd337140511ed6f2b329205105ad441c5a02b7",
+      "bytes": 243550,
+      "source": "https://raw.githubusercontent.com/yt-dlp/yt-dlp/2026.10.26/THIRD_PARTY_LICENSES.txt"
+    }
+  ]
+}
