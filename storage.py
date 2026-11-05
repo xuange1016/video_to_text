@@ -7,17 +7,22 @@ from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
+from downloads import download_video, publish_video
 from engine import export_contents, export_result, process_media
 from platforms import Cancelled, Media, MediaError, MESSAGES
 
 
-ACTIVE = ("queued", "subtitle", "audio", "model", "loading", "transcribing", "saving")
+ACTIVE = ("queued", "subtitle", "audio", "model", "loading", "transcribing", "media", "downloading", "muxing", "saving")
 RETRYABLE = ("failed", "cancelled", "interrupted", "save_pending")
-LABELS = dict(zip(
-    (*ACTIVE, *RETRYABLE, "done", "waiting"),
-    ("等待处理", "获取平台字幕", "获取音频", "下载模型", "加载模型", "语音转写", "保存文件",
-     "失败", "已取消", "已中断", "待保存", "已完成", "待启动"),
-))
+LABELS = {
+    "queued": "等待处理", "subtitle": "获取平台字幕", "audio": "获取音频",
+    "model": "下载模型", "loading": "加载模型", "transcribing": "语音转写",
+    "media": "获取视频信息", "downloading": "下载视频", "muxing": "合并音视频", "saving": "保存文件",
+    "failed": "失败", "cancelled": "已取消", "interrupted": "已中断",
+    "save_pending": "待保存", "done": "已完成", "waiting": "待启动",
+}
+OPTION_FIELDS = {"transcribe": ("root", "model", "format"), "download": ("root", "quality")}
+KIND_LABELS = {"transcribe": "提取文案", "download": "保存视频"}
 
 
 def compact_title(title):
@@ -95,12 +100,60 @@ class Store:
             return batch
 
     def edit_waiting(self, job, alias, options):
-        overrides = {key: options[key] for key in ("root", "model", "format") if key in options}
         with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("""
+                SELECT jobs.job_options, batches.options AS batch_options
+                FROM jobs JOIN batches ON batches.id=jobs.batch WHERE jobs.id=? AND jobs.status='waiting'
+            """, (job,)).fetchone()
+            if row is None:
+                return False
+            kind = effective_options(row).get("kind", "transcribe")
+            overrides = json.loads(row["job_options"] or "{}") | {
+                key: options[key] for key in OPTION_FIELDS[kind] if key in options
+            }
             cursor = db.execute("""
                 UPDATE jobs SET alias=?, job_options=? WHERE id=? AND status='waiting'
             """, (" ".join(alias.split()), json.dumps(overrides, ensure_ascii=False), job))
             return cursor.rowcount == 1
+
+    def edit_waiting_many(self, jobs, options):
+        jobs = sorted(set(jobs))
+        if not jobs:
+            return 0
+        placeholders = ",".join("?" for _ in jobs)
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            rows = db.execute(f"""
+                SELECT jobs.id, jobs.job_options, batches.options AS batch_options
+                FROM jobs JOIN batches ON batches.id=jobs.batch
+                WHERE jobs.id IN ({placeholders}) AND jobs.status='waiting'
+            """, jobs).fetchall()
+            changes = []
+            for row in rows:
+                kind = effective_options(row).get("kind", "transcribe")
+                patch = {key: options[key] for key in OPTION_FIELDS[kind] if key in options}
+                if patch:
+                    overrides = json.loads(row["job_options"] or "{}") | patch
+                    changes.append((json.dumps(overrides, ensure_ascii=False), row["id"]))
+            db.executemany("UPDATE jobs SET job_options=? WHERE id=? AND status='waiting'", changes)
+            return len(changes)
+
+    def delete_waiting_many(self, jobs):
+        jobs = sorted(set(jobs))
+        if not jobs:
+            return 0
+        placeholders = ",".join("?" for _ in jobs)
+        with self.connect() as db:
+            rows = db.execute(f"""
+                DELETE FROM jobs WHERE id IN ({placeholders}) AND status='waiting'
+                AND NOT EXISTS (SELECT 1 FROM jobs child WHERE child.parent_job=jobs.id)
+                RETURNING batch
+            """, jobs).fetchall()
+            for batch in {row["batch"] for row in rows}:
+                db.execute("DELETE FROM batches WHERE id=? AND NOT EXISTS (SELECT 1 FROM jobs WHERE batch=?)",
+                           (batch, batch))
+            return len(rows)
 
     def delete_waiting(self, job):
         with self.connect() as db:
@@ -173,12 +226,14 @@ class Store:
         for row in rows:
             media = json.loads(row["media"])
             options = effective_options(row)
+            kind = options.get("kind", "transcribe")
             details = dict(row)
             del details["job_options"], details["batch_options"]
             jobs.append(media | details | {
                 "stateLabel": LABELS[row["status"]],
                 "displayTitle": compact_title(row["alias"] or media["title"]),
                 "locator": media["ref"],
+                "kind": kind, "kindLabel": KIND_LABELS[kind], "quality": options.get("quality", "720"),
                 **{key: options.get(key, "") for key in ("root", "model", "format")},
             })
         return jobs
@@ -201,17 +256,19 @@ class Store:
         return [row["id"] for row in rows if row["status"] in (*RETRYABLE, "queued")]
 
 
-def run_batch(store, batch, item, output_override, platforms, transcriber, ffmpeg, temp, notify, cancel, *, observe=None):
+def run_batch(store, batch, item, output_override, platforms, transcriber, ffmpeg, temp, notify, cancel, *, observe=None,
+              media_cache=None):
     for job_id in store.jobs_to_run(batch, item):
         job = store.item(job_id)
         if cancel():
             saved_result = bool(job["result"])
             store.change(job_id, status="save_pending" if saved_result else "cancelled",
-                         progress=None, error="已取消，可补存文稿。" if saved_result else "已取消，可单独重试。")
+                         progress=None, error="已取消，可补存结果。" if saved_result else "已取消，可单独重试。")
             notify()
             continue
         media = Media(**json.loads(job["media"]))
         options = json.loads(job["options"])
+        downloading = options.get("kind", "transcribe") == "download"
         options["force_audio"] = bool(job["force_audio"])
         if output_override:
             store.change(job_id, target=output_override)
@@ -230,31 +287,45 @@ def run_batch(store, batch, item, output_override, platforms, transcriber, ffmpe
 
         try:
             if not result:
-                result = process_media(platforms, transcriber, ffmpeg, media, options, temp, report, cancel)
+                if downloading:
+                    cache = Path(media_cache) if media_cache else Path(store.path).parent / "media-cache"
+                    cache.mkdir(parents=True, exist_ok=True)
+                    result = download_video(platforms, ffmpeg, media, options | {"_job_id": job_id}, cache, report, cancel)
+                else:
+                    result = process_media(platforms, transcriber, ffmpeg, media, options, temp, report, cancel)
                 store.change(job_id, result=json.dumps(result, ensure_ascii=False))
             if cancel():
                 raise Cancelled
             report("saving", None)
-            files = export_contents(result, options["format"])
             suffix = "重转" if job["parent_job"] else (
                 media.key.split(":", 1)[1].replace(":", "-") if media.source != "本地文件"
                 else "本地 " + hashlib.blake2s(media.key.encode("utf-8"), digest_size=4).hexdigest())
-            destination = export_result(
-                job["target"] or options["root"], media.title, suffix, files, job["destination"],
-                lambda name: store.change(job_id, destination=name),
-            )
+            if downloading:
+                destination = publish_video(
+                    job["target"] or options["root"], media.title, suffix + " 视频", result, job["destination"],
+                    lambda name: store.change(job_id, destination=name), cancel,
+                )
+            else:
+                destination = export_result(
+                    job["target"] or options["root"], media.title, suffix, export_contents(result, options["format"]),
+                    job["destination"], lambda name: store.change(job_id, destination=name),
+                )
             store.change(job_id, status="done", destination=destination, progress=1, error="", code="")
         except Cancelled:
             store.change(job_id, status="save_pending" if result else "cancelled", progress=None,
-                         error="已取消，可补存文稿。" if result else "已取消，可单独重试。")
+                         error="已取消，可补存结果。" if result else "已取消，可单独重试。")
         except MediaError as exc:
-            store.change(job_id, status="failed", progress=None, error=str(exc), code=exc.code)
+            if exc.code == "cache_missing":
+                result = None
+                store.change(job_id, result=None)
+            store.change(job_id, status="save_pending" if result else "failed", progress=None,
+                         error=str(exc), code=exc.code)
         except OSError:
-            code = "save" if result else "local"
+            code = ("video_save" if downloading else "save") if result else "local"
             store.change(job_id, status="save_pending" if result else "failed", progress=None,
                          error=MESSAGES[code], code=code)
         except Exception:
-            code = "save" if result else "unexpected"
+            code = ("video_save" if downloading else "save") if result else "unexpected"
             store.change(job_id, status="save_pending" if result else "failed", progress=None,
                          error=MESSAGES[code], code=code)
         notify()

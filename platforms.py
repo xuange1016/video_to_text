@@ -34,6 +34,9 @@ MESSAGES = {
     "model": "模型加载或下载失败。请检查网络和磁盘空间后重试。",
     "save": "文案已生成，保存失败。请更换目录或检查权限和磁盘空间。",
     "unexpected": "处理遇到异常。请重试该条素材。",
+    "video_save": "视频已下载，保存失败。请更换目录或检查权限和磁盘空间。",
+    "video_local": "保存视频任务需要抖音或 B 站链接。",
+    "cache_missing": "视频缓存已丢失，请重试以重新下载。",
 }
 
 
@@ -276,7 +279,7 @@ class Platforms:
                   and f.get("acodec") not in (None, "none")]
         return tracks, audios, info.get("duration") or media.duration
 
-    def douyin(self, media, force_audio):
+    def _douyin_item(self, media):
         from playwright.sync_api import Error, sync_playwright
 
         video_id = media.key.split(":")[1]
@@ -314,6 +317,11 @@ class Platforms:
             else:
                 raise (last if isinstance(last, MediaError) else MediaError("platform")) from last
 
+        headers["User-Agent"] = actual_ua
+        return item, headers
+
+    def douyin(self, media, force_audio):
+        item, headers = self._douyin_item(media)
         video = item.get("video") or {}
         tracks = []
         if not force_audio:
@@ -321,15 +329,39 @@ class Platforms:
                 if is_zh(sub.get("language_code") or sub.get("LanguageCodeName")):
                     tracks.append({"url": sub.get("url") or sub.get("Url"),
                                    "ext": sub.get("format") or sub.get("Format") or "srt"})
-        headers["User-Agent"] = actual_ua
         rates = sorted(video.get("bit_rate") or [], key=lambda entry: entry.get("bit_rate") or 0)
         addresses = [video.get("audio"), video.get("bit_rate_audio"),
                      *(rate.get("play_addr") for rate in rates), video.get("play_addr"),
                      video.get("play_addr_h264"), video.get("download_addr")]
-        audios = [AudioSource(url, headers) for url in dict.fromkeys(find_urls(addresses))
-                  if host_is(urlsplit(url).hostname or "", "douyinvod.com", "douyincdn.com", "douyin.com")]
+        audios = douyin_sources(addresses, headers)
         milliseconds = video.get("duration") or item.get("duration")
         return tracks, audios, milliseconds / 1000 if milliseconds else media.duration
+
+    def douyin_video(self, media, quality):
+        item, headers = self._douyin_item(media)
+        video = item.get("video") or {}
+        ceiling = int(quality) if quality != "best" else None
+        candidates = []
+        unknown = []
+        rates = [((rate.get("play_addr") or {}), rate.get("bit_rate") or 0, not rate.get("is_bytevc1"))
+                 for rate in video.get("bit_rate") or []]
+        rates.extend([(video.get("play_addr_h264") or {}, 0, True),
+                      (video.get("play_addr") or {}, 0, False),
+                      (video.get("download_addr") or {}, 0, True)])
+        for address, bitrate, compatible in rates:
+            width = address.get("width") or video.get("width") or 0
+            height = address.get("height") or video.get("height") or 0
+            size = min(width, height) if width and height else 0
+            if size and (ceiling is None or size <= ceiling):
+                candidates.append((size, compatible, bitrate, address))
+            elif not size:
+                unknown.append(address)
+        candidates.sort(key=lambda entry: entry[:3], reverse=True)
+        sources = douyin_sources([entry[3] for entry in candidates] + unknown, headers)
+        if not sources:
+            raise MediaError("no_audio", "该视频没有当前清晰度的可用播放地址。可尝试最佳可用画质。")
+        milliseconds = video.get("duration") or item.get("duration")
+        return sources, milliseconds / 1000 if milliseconds else media.duration
 
     def subtitle_body(self, track):
         if track.get("data"):
@@ -343,6 +375,11 @@ class Platforms:
             if len(data) > 8 * 1024 * 1024:
                 return ""
             return data.decode("utf-8-sig", errors="replace")
+
+
+def douyin_sources(addresses, headers):
+    return [AudioSource(url, headers) for url in dict.fromkeys(find_urls(addresses))
+            if host_is(urlsplit(url).hostname or "", "douyinvod.com", "douyincdn.com", "douyin.com")]
 
 
 def block_player_media(route):

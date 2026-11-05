@@ -40,9 +40,14 @@ ApplicationWindow {
     readonly property var formats: ["both", "txt", "srt"]
     readonly property var modelLabels: ["快速 · small", "均衡 · medium"]
     readonly property var formatLabels: ["TXT + SRT", "TXT · 纯文案", "SRT · 带时间码"]
+    readonly property var kinds: ["transcribe", "download"]
+    readonly property var kindLabels: ["提取文案", "保存视频"]
+    readonly property var qualities: ["720", "1080", "best"]
+    readonly property var qualityLabels: ["最高 720p", "最高 1080p", "最佳可用"]
     property string page: "work"
     property string draft: ""
     property string batchFolder: appState.settings.root
+    property string batchKind: "transcribe"
     property string settingsFolder: appState.settings.root
     property bool timeline: false
     property bool chooseSettingFolder: false
@@ -54,6 +59,9 @@ ApplicationWindow {
     property var editing: ({})
     property var removing: ({})
     property var queueIndex: ({})
+    property var selectedWaiting: []
+    property var bulkTargets: []
+    property string bulkError: ""
     readonly property bool parsing: appState.task === "resolve"
     readonly property bool smallBusy: ["downloading", "stopping"].includes(appState.smallDownload.status)
     readonly property var queueJobs: appState.activeJobs.concat(appState.waitingJobs)
@@ -62,6 +70,11 @@ ApplicationWindow {
         return ["failed", "interrupted", "cancelled", "save_pending"].includes(job.status)
     }).length
     readonly property bool split: width >= 1150
+    readonly property bool videoDetail: appState.detail.kind === "download"
+    readonly property var selectedWaitingJobs: appState.waitingJobs.filter(function(job) { return selectedWaiting.includes(job.id) })
+    readonly property bool bulkHasText: selectedWaitingJobs.some(function(job) { return job.kind !== "download" })
+    readonly property bool bulkHasVideo: selectedWaitingJobs.some(function(job) { return job.kind === "download" })
+    onBatchKindChanged: appState.setImportKind(batchKind)
     onQueueJobsChanged: if (queueModel) syncQueue()
     Component.onCompleted: syncQueue()
 
@@ -76,6 +89,8 @@ ApplicationWindow {
             order.push(job.id)
         }
         queueIndex = next
+        const remaining = selectedWaiting.filter(function(id) { return next[id] && next[id].status === "waiting" })
+        if (remaining.length !== selectedWaiting.length) selectedWaiting = remaining
         const kept = {}
         for (let i = queueModel.count - 1; i >= 0; --i) {
             const id = queueModel.get(i).jobId
@@ -91,6 +106,28 @@ ApplicationWindow {
             if (oldPosition < queueModel.count) queueModel.move(oldPosition, i, 1)
             else queueModel.insert(i, {jobId: id})
         }
+    }
+
+    function selectWaiting(id, checked) {
+        if (checked && !selectedWaiting.includes(id)) selectedWaiting = selectedWaiting.concat([id])
+        else if (!checked) selectedWaiting = selectedWaiting.filter(function(value) { return value !== id })
+    }
+
+    function receiveDrop(urls, text) {
+        const values = []
+        for (const url of urls) values.push(url.toString())
+        const added = appState.acceptDrop(values, text || "")
+        if (added.text) draft = draft.trim() ? draft.replace(/\s+$/, "") + "\n" + added.text : added.text
+        if (!added.text && !added.foldersAdded)
+            message = "没有添加新素材。请检查文件、文件夹或分享链接。"
+        else
+            message = added.rejected ? "已添加可用素材。部分内容无法导入，请检查文件类型或链接。" : "素材已添加，解析后可确认任务。"
+        toastTimer.restart()
+    }
+
+    function fileSize(bytes) {
+        if (typeof bytes !== "number" || bytes <= 0) return ""
+        return bytes >= 1024 * 1024 ? (bytes / 1024 / 1024).toFixed(1) + " MB" : Math.ceil(bytes / 1024) + " KB"
     }
 
     function jobTitle(job) {
@@ -394,6 +431,24 @@ ApplicationWindow {
         radius: 15
     }
 
+    component TaskDialog: Dialog {
+        id: taskDialog
+        padding: 17
+        background: Rectangle { color: window.ivory; radius: 14; border.color: "#cbd7bf" }
+        header: Label {
+            text: taskDialog.title
+            color: window.ink
+            font.pixelSize: 18
+            font.weight: Font.DemiBold
+            leftPadding: 17
+            rightPadding: 17
+            topPadding: 17
+            bottomPadding: 10
+            wrapMode: Text.Wrap
+            Accessible.name: text
+        }
+    }
+
     component Status: Rectangle {
         property string label: ""
         property string status: ""
@@ -479,10 +534,15 @@ ApplicationWindow {
     }
     FolderDialog {
         id: recoverDialog
-        title: "换一个目录保存文稿"
+        title: "换一个目录保存结果"
         onAccepted: appState.retry(window.saveJob, window.localPath(selectedFolder))
     }
-    Dialog {
+    FolderDialog {
+        id: bulkOutputDialog
+        title: "选择所选任务的保存目录"
+        onAccepted: bulkOutput.text = window.localPath(selectedFolder)
+    }
+    TaskDialog {
         id: editDialog
         title: "编辑等待任务"
         anchors.centerIn: parent
@@ -531,14 +591,22 @@ ApplicationWindow {
             RowLayout {
                 Layout.fillWidth: true
                 ColumnLayout {
+                    visible: window.editing.kind !== "download"
                     Layout.fillWidth: true
                     Label { text: "转写模型" }
                     Choice { id: editModel; Layout.fillWidth: true; model: window.modelLabels; Accessible.name: "任务模型" }
                 }
                 ColumnLayout {
+                    visible: window.editing.kind !== "download"
                     Layout.fillWidth: true
                     Label { text: "导出格式" }
                     Choice { id: editFormat; Layout.fillWidth: true; model: window.formatLabels; Accessible.name: "任务导出格式" }
+                }
+                ColumnLayout {
+                    visible: window.editing.kind === "download"
+                    Layout.fillWidth: true
+                    Label { text: "视频清晰度" }
+                    Choice { id: editQuality; Layout.fillWidth: true; model: window.qualityLabels; Accessible.name: "任务视频清晰度" }
                 }
             }
             RowLayout {
@@ -554,14 +622,96 @@ ApplicationWindow {
                     onClicked: {
                         if (appState.editWaiting(window.editing.id, aliasField.text, editOutput.text,
                                                  window.models[editModel.currentIndex],
-                                                 window.formats[editFormat.currentIndex]) !== false)
+                                                 window.formats[editFormat.currentIndex],
+                                                 window.qualities[editQuality.currentIndex]) !== false)
                             editDialog.close()
                     }
                 }
             }
         }
     }
-    Dialog {
+    TaskDialog {
+        id: bulkDialog
+        title: "批量修改等待任务"
+        anchors.centerIn: parent
+        modal: true
+        width: Math.min(510, window.width - 40)
+        onOpened: { window.bulkError = ""; bulkOutput.clear(); bulkModel.currentIndex = 0; bulkFormat.currentIndex = 0; bulkQuality.currentIndex = 0 }
+        ColumnLayout {
+            width: bulkDialog.availableWidth
+            spacing: 12
+            Hint { Layout.fillWidth: true; text: "修改所选 " + window.bulkTargets.length + " 条等待任务。留空的项目保留各任务原值。" }
+            Label { text: "保存目录" }
+            RowLayout {
+                Layout.fillWidth: true
+                PathField { id: bulkOutput; objectName: "bulkOutput"; Layout.fillWidth: true; placeholderText: "保留各任务目录"; Accessible.name: "批量保存目录" }
+                Action { text: "浏览"; onClicked: bulkOutputDialog.open() }
+            }
+            RowLayout {
+                visible: window.bulkHasText
+                Layout.fillWidth: true
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Label { text: "文案模型" }
+                    Choice { id: bulkModel; objectName: "bulkModel"; Layout.fillWidth: true; model: ["保留各任务模型"].concat(window.modelLabels); Accessible.name: "批量转写模型" }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Label { text: "文案格式" }
+                    Choice { id: bulkFormat; objectName: "bulkFormat"; Layout.fillWidth: true; model: ["保留各任务格式"].concat(window.formatLabels); Accessible.name: "批量导出格式" }
+                }
+            }
+            ColumnLayout {
+                visible: window.bulkHasVideo
+                Layout.fillWidth: true
+                Label { text: "视频清晰度" }
+                Choice { id: bulkQuality; objectName: "bulkQuality"; Layout.fillWidth: true; model: ["保留各任务清晰度"].concat(window.qualityLabels); Accessible.name: "批量视频清晰度" }
+            }
+            Hint { Layout.fillWidth: true; visible: window.bulkError !== ""; text: window.bulkError; color: window.accent }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Action { text: "取消"; quiet: true; onClicked: bulkDialog.close() }
+                Action {
+                    objectName: "applyBulkWaiting"
+                    text: "应用修改"
+                    primary: true
+                    enabled: bulkOutput.text.trim() !== "" || bulkModel.currentIndex > 0 || bulkFormat.currentIndex > 0 || bulkQuality.currentIndex > 0
+                    onClicked: {
+                        const changed = appState.bulkEditWaiting(window.bulkTargets, bulkOutput.text,
+                            bulkModel.currentIndex > 0 ? window.models[bulkModel.currentIndex - 1] : "",
+                            bulkFormat.currentIndex > 0 ? window.formats[bulkFormat.currentIndex - 1] : "",
+                            bulkQuality.currentIndex > 0 ? window.qualities[bulkQuality.currentIndex - 1] : "")
+                        if (changed > 0) bulkDialog.close()
+                    }
+                }
+            }
+        }
+    }
+    TaskDialog {
+        id: removeManyDialog
+        title: "移除所选等待任务？"
+        anchors.centerIn: parent
+        modal: true
+        width: 435
+        ColumnLayout {
+            width: removeManyDialog.availableWidth
+            spacing: 14
+            Hint { Layout.fillWidth: true; text: "将从队列移除所选 " + window.bulkTargets.length + " 条等待任务，源文件会保留。" }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Action { text: "取消"; quiet: true; onClicked: removeManyDialog.close() }
+                Action {
+                    objectName: "confirmRemoveWaitingMany"
+                    text: "移除所选"
+                    primary: true
+                    onClicked: { appState.removeWaitingMany(window.bulkTargets); removeManyDialog.close() }
+                }
+            }
+        }
+    }
+    TaskDialog {
         id: removeDialog
         title: "移除等待任务？"
         anchors.centerIn: parent
@@ -585,7 +735,7 @@ ApplicationWindow {
             }
         }
     }
-    Dialog {
+    TaskDialog {
         id: quitDialog
         title: "结束当前处理？"
         anchors.centerIn: parent
@@ -609,6 +759,7 @@ ApplicationWindow {
         function onFeedback(value) {
             window.message = value
             if (editDialog.visible) window.editError = value
+            if (bulkDialog.visible) window.bulkError = value
             toastTimer.restart()
         }
         function onSettingsSaved() {
@@ -715,7 +866,7 @@ ApplicationWindow {
                     Heading {
                         Layout.fillWidth: true
                         text: ({work: appState.stage === 2 ? "确认素材" : "导入素材",
-                                queue: "任务队列", result: "提取结果",
+                                queue: "任务队列", result: "任务结果",
                                 history: "任务记录", settings: "设置"})[window.page]
                         font.pixelSize: 37
                     }
@@ -730,8 +881,8 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     text: ({work: appState.stage === 2 ? "选好素材和导出方式，再把任务加入等待队列。"
                                                    : "粘贴视频分享文字或本地路径，也可以从文件夹批量导入。",
-                            queue: "等待任务可以改名、调整导出选项或移除。准备好后，再开始提取。",
-                            result: "选择一条任务，查看处理状态或阅读已完成的文稿。",
+                            queue: "选择等待任务，可一起调整模型、格式、清晰度和保存目录。",
+                            result: "选择一条任务，阅读文稿或打开已保存的视频。",
                             history: "打开批次，查看已生成的文稿或继续未完成的任务。",
                             settings: "设置新任务的默认保存位置、转写模型和同时处理数。"})[window.page]
                 }
@@ -748,14 +899,43 @@ ApplicationWindow {
                     RowLayout {
                       spacing: 24
                       Surface {
+                        id: importCard
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         Layout.preferredWidth: 650
+                        DropArea {
+                            id: importDrop
+                            objectName: "importDropTarget"
+                            anchors.fill: parent
+                            z: 2
+                            enabled: !window.parsing
+                            onEntered: function(drag) { drag.accepted = drag.hasUrls || drag.hasText }
+                            onDropped: function(drop) {
+                                window.receiveDrop(drop.urls, drop.text)
+                                drop.acceptProposedAction()
+                            }
+                        }
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: 9
+                            radius: 13
+                            z: 3
+                            visible: importDrop.containsDrag
+                            color: "#f0f5e9"
+                            border.width: 2
+                            border.color: window.leaf
+                            ColumnLayout {
+                                anchors.centerIn: parent
+                                spacing: 8
+                                Heading { text: "松开以添加素材"; Layout.alignment: Qt.AlignHCenter }
+                                Hint { text: "支持文件、文件夹和分享链接"; Layout.alignment: Qt.AlignHCenter }
+                            }
+                        }
                         ColumnLayout {
                             anchors.fill: parent
                             anchors.margins: window.split ? 24 : 16
                             spacing: 15
-                            Heading { text: "粘贴链接与路径" }
+                            Heading { text: "粘贴链接或拖入素材" }
                             ScrollView {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
@@ -764,7 +944,7 @@ ApplicationWindow {
                                     objectName: "sourceInput"
                                     text: window.draft
                                     onTextChanged: window.draft = text
-                                    placeholderText: "粘贴分享文本、链接或本地文件路径\n例如 https://v.douyin.com/…\n或 D:\\视频素材\\采访.mp4"
+                                    placeholderText: "粘贴分享文本、链接或本地文件路径\n也可以把文件和文件夹直接拖到这里\n例如 https://v.douyin.com/…"
                                     placeholderTextColor: window.muted
                                     color: window.ink
                                     selectionColor: window.accent
@@ -886,7 +1066,7 @@ ApplicationWindow {
                                     id: materialRow
                                     required property var modelData
                                     width: ListView.view.width - 6
-                                    height: modelData.error ? 61 : 48
+                                    height: modelData.error || modelData.unavailableReason ? 61 : 48
                                     color: modelData.checked ? window.leafWash : materialHover.hovered ? "#f2f1e6" : window.ivory
                                     Behavior on color { enabled: window.motion; ColorAnimation { duration: 120 } }
                                     HoverHandler { id: materialHover }
@@ -897,7 +1077,7 @@ ApplicationWindow {
                                         anchors.rightMargin: 9
                                         CheckBox {
                                             Accessible.name: materialRow.modelData.title
-                                            enabled: !materialRow.modelData.error && !window.parsing
+                                            enabled: !materialRow.modelData.error && materialRow.modelData.usable !== false && !window.parsing
                                             checked: materialRow.modelData.checked
                                             onClicked: appState.selectItem(materialRow.modelData.key, checked)
                                         }
@@ -906,12 +1086,36 @@ ApplicationWindow {
                                             spacing: 1
                                             Label { Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText
                                                 text: materialRow.modelData.title; color: window.ink }
-                                            Hint { Layout.fillWidth: true; text: materialRow.modelData.error; visible: text.length > 0; font.pixelSize: 11 }
+                                            Hint { Layout.fillWidth: true; text: materialRow.modelData.error || materialRow.modelData.unavailableReason || ""; visible: text.length > 0; font.pixelSize: 11 }
                                         }
                                         Status { label: materialRow.modelData.source }
                                         Hint { text: materialRow.modelData.error ? "无效" : window.duration(materialRow.modelData.duration) }
                                     }
                                 }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 10
+                                Label { text: "任务类型"; color: window.ink }
+                                Choice {
+                                    id: taskKind
+                                    objectName: "taskKind"
+                                    model: window.kindLabels
+                                    currentIndex: window.kinds.indexOf(window.batchKind)
+                                    Layout.preferredWidth: 166
+                                    Accessible.name: "任务类型"
+                                    onActivated: window.batchKind = window.kinds[currentIndex]
+                                }
+                                Label { visible: window.batchKind === "download"; text: "视频清晰度"; color: window.ink }
+                                Choice {
+                                    id: batchQuality
+                                    objectName: "batchQuality"
+                                    visible: window.batchKind === "download"
+                                    model: window.qualityLabels
+                                    Layout.preferredWidth: 166
+                                    Accessible.name: "视频清晰度"
+                                }
+                                Item { Layout.fillWidth: true }
                             }
                             GridLayout {
                                 Layout.fillWidth: true
@@ -922,9 +1126,10 @@ ApplicationWindow {
                                 PathField { id: batchOutput; objectName: "batchOutput"; Layout.fillWidth: true; text: window.batchFolder
                                     selectByMouse: true; onTextEdited: window.batchFolder = text }
                                 Action { text: "浏览"; onClicked: { window.chooseEditingFolder = false; window.chooseSettingFolder = false; outputDialog.open() } }
-                                Hint { text: "中文 · 简体输出"; font.pixelSize: 12 }
-                                Label { text: "转写模型"; color: window.ink }
+                                Hint { text: window.batchKind === "download" ? "MP4 · 来源可用画质" : "中文 · 简体输出"; font.pixelSize: 12 }
+                                Label { visible: window.batchKind !== "download"; text: "转写模型"; color: window.ink }
                                 RowLayout {
+                                    visible: window.batchKind !== "download"
                                     Choice { id: batchModel; model: window.modelLabels; Layout.preferredWidth: 166
                                         currentIndex: window.models.indexOf(appState.settings.model) }
                                     Hint {
@@ -934,8 +1139,8 @@ ApplicationWindow {
                                                   (appState.modelsInfo[window.models[batchModel.currentIndex]]?.size || "")
                                     }
                                 }
-                                Label { text: "导出格式"; color: window.ink }
-                                Choice { id: batchFormat; model: window.formatLabels; Layout.preferredWidth: 161
+                                Label { visible: window.batchKind !== "download"; text: "导出格式"; color: window.ink }
+                                Choice { id: batchFormat; visible: window.batchKind !== "download"; model: window.formatLabels; Layout.preferredWidth: 161
                                     currentIndex: window.formats.indexOf(appState.settings.format) }
                             }
                             RowLayout {
@@ -950,7 +1155,8 @@ ApplicationWindow {
                                     text: "加入等待队列"
                                     onClicked: {
                                         if (appState.enqueue(batchOutput.text, window.models[batchModel.currentIndex],
-                                                             window.formats[batchFormat.currentIndex]) !== false) {
+                                                             window.formats[batchFormat.currentIndex], window.batchKind,
+                                                             window.qualities[batchQuality.currentIndex]) !== false) {
                                             window.draft = ""
                                             window.page = "queue"
                                         }
@@ -992,7 +1198,7 @@ ApplicationWindow {
                                 ColumnLayout {
                                     anchors.fill: parent
                                     anchors.margins: 12
-                                    Heading { text: "提取任务" }
+                                    Heading { text: "本批任务" }
                                     ListView {
                                         Layout.fillWidth: true
                                         Layout.fillHeight: true
@@ -1046,7 +1252,7 @@ ApplicationWindow {
                                     anchors.fill: parent
                                     anchors.margins: 12
                                     spacing: 6
-                                    Heading { text: "文案预览" }
+                                    Heading { text: window.videoDetail ? "视频文件" : "文案预览" }
                                     Label {
                                         Layout.fillWidth: true
                                         text: window.jobTitle(appState.detail) || "选择一条任务"
@@ -1073,11 +1279,13 @@ ApplicationWindow {
                                               appState.detail.stateLabel || "任务完成后，文案会显示在这里。"
                                     }
                                     RowLayout {
-                                        visible: Boolean(appState.detail.hasResult)
+                                        objectName: "resultViewSwitch"
+                                        visible: Boolean(appState.detail.hasResult) && !window.videoDetail
                                         Action { text: "纯文案"; highlightedNav: !window.timeline; onClicked: window.timeline = false }
                                         Action { text: "时间轴"; highlightedNav: window.timeline; onClicked: window.timeline = true }
                                     }
                                     ScrollView {
+                                        visible: !window.videoDetail
                                         Layout.fillWidth: true
                                         Layout.fillHeight: true
                                         Layout.minimumHeight: 70
@@ -1092,20 +1300,76 @@ ApplicationWindow {
                                             background: Rectangle { radius: 6; color: window.inset }
                                         }
                                     }
+                                    ColumnLayout {
+                                        visible: window.videoDetail
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        spacing: window.split ? 12 : 6
+                                        Rectangle {
+                                            visible: window.split
+                                            Layout.fillWidth: true
+                                            Layout.preferredHeight: 122
+                                            radius: 12
+                                            color: window.leafWash
+                                            Canvas {
+                                                width: 66
+                                                height: 50
+                                                anchors.centerIn: parent
+                                                onPaint: {
+                                                    const c = getContext("2d")
+                                                    c.reset()
+                                                    c.strokeStyle = window.leaf
+                                                    c.lineWidth = 2
+                                                    c.lineJoin = "round"
+                                                    c.strokeRect(2, 2, 62, 46)
+                                                    c.beginPath(); c.moveTo(27, 15); c.lineTo(44, 25); c.lineTo(27, 35); c.closePath(); c.stroke()
+                                                }
+                                            }
+                                        }
+                                        Heading {
+                                            Layout.fillWidth: true
+                                            text: appState.detail.status === "done" ? "视频已保存" : appState.detail.status === "save_pending" ? "视频已获取，等待保存" : "正在准备视频"
+                                            font.pixelSize: 18
+                                        }
+                                        Hint {
+                                            Layout.fillWidth: true
+                                            visible: Boolean(appState.detail.hasResult)
+                                            text: ["MP4", window.fileSize(appState.detail.videoBytes || appState.detail.videoSize),
+                                                   appState.detail.videoHeight ? appState.detail.videoHeight + "p" : "",
+                                                   window.duration(appState.detail.videoDuration || appState.detail.duration)].filter(function(value) { return value !== "" }).join(" · ")
+                                        }
+                                        Hint {
+                                            Layout.fillWidth: true
+                                            text: appState.detail.status === "done" ? appState.detail.outputFile || "" :
+                                                  appState.detail.status === "save_pending" ? "更换可写目录后，可直接补存视频。" : "下载进度会显示在任务列表中。"
+                                            textFormat: Text.PlainText
+                                            wrapMode: Text.WrapAnywhere
+                                            maximumLineCount: 4
+                                            elide: Text.ElideMiddle
+                                        }
+                                        Item { Layout.fillHeight: true }
+                                    }
                                     Flow {
                                         Layout.fillWidth: true
                                         spacing: 6
                                         Action {
                                             objectName: "copyResult"
-                                            text: "复制文案"; visible: Boolean(appState.detail.hasResult)
+                                            text: "复制文案"; visible: Boolean(appState.detail.hasResult) && !window.videoDetail
                                             onClicked: appState.copy(appState.detail.text)
+                                        }
+                                        Action {
+                                            objectName: "playResultVideo"
+                                            text: "播放视频"
+                                            primary: true
+                                            visible: window.videoDetail && appState.detail.status === "done"
+                                            onClicked: appState.openVideo(appState.detail.id)
                                         }
                                         Action {
                                             text: "打开保存目录"; visible: appState.detail.status === "done"
                                             onClicked: appState.openFolder(appState.detail.destination)
                                         }
                                         Action {
-                                            text: "用语音重转"; visible: appState.detail.transcriptSource === "平台字幕"
+                                            text: "用语音重转"; visible: !window.videoDetail && appState.detail.transcriptSource === "平台字幕"
                                             enabled: !appState.busy
                                             onClicked: appState.forceAudio(appState.detail.id)
                                         }
@@ -1401,6 +1665,31 @@ ApplicationWindow {
                             onClicked: { window.message = ""; appState.startWaiting(0) }
                         }
                     }
+                    RowLayout {
+                        visible: appState.waitingJobs.length > 0
+                        Layout.fillWidth: true
+                        spacing: 8
+                        CheckBox {
+                            objectName: "selectAllWaiting"
+                            text: "全选等待任务"
+                            checked: appState.waitingJobs.length > 0 && window.selectedWaitingJobs.length === appState.waitingJobs.length
+                            onClicked: window.selectedWaiting = checked ? appState.waitingJobs.map(function(job) { return job.id }) : []
+                        }
+                        Hint { text: "已选 " + window.selectedWaitingJobs.length + " 条"; Layout.fillWidth: true }
+                        Action {
+                            objectName: "bulkEditWaiting"
+                            text: "批量修改"
+                            enabled: window.selectedWaitingJobs.length > 0
+                            onClicked: { window.bulkTargets = window.selectedWaiting.slice(); bulkDialog.open() }
+                        }
+                        Action {
+                            objectName: "removeWaitingMany"
+                            text: "移除所选"
+                            quiet: true
+                            enabled: window.selectedWaitingJobs.length > 0
+                            onClicked: { window.bulkTargets = window.selectedWaiting.slice(); removeManyDialog.open() }
+                        }
+                    }
                     Surface {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
@@ -1444,6 +1733,14 @@ ApplicationWindow {
                                     Layout.leftMargin: 9
                                     Layout.rightMargin: 5
                                     spacing: window.split ? 14 : 8
+                                    CheckBox {
+                                        visible: queueRow.waiting
+                                        objectName: "checkWaiting_" + queueRow.jobId
+                                        Layout.preferredWidth: 30
+                                        checked: window.selectedWaiting.includes(queueRow.jobId)
+                                        Accessible.name: "选择等待任务 " + window.jobTitle(queueRow.modelData)
+                                        onClicked: window.selectWaiting(queueRow.jobId, checked)
+                                    }
                                     ColumnLayout {
                                         Layout.fillWidth: true
                                         spacing: 2
@@ -1461,7 +1758,7 @@ ApplicationWindow {
                                         }
                                         Hint {
                                             Layout.fillWidth: true
-                                            text: queueRow.modelData.source + " · " + window.duration(queueRow.modelData.duration)
+                                            text: (queueRow.modelData.kindLabel || "提取文案") + " · " + queueRow.modelData.source + " · " + window.duration(queueRow.modelData.duration)
                                             wrapMode: Text.NoWrap
                                             elide: Text.ElideRight
                                             font.pixelSize: 12
@@ -1502,6 +1799,7 @@ ApplicationWindow {
                                             editOutput.text = window.editing.root
                                             editModel.currentIndex = window.models.indexOf(window.editing.model)
                                             editFormat.currentIndex = window.formats.indexOf(window.editing.format)
+                                            editQuality.currentIndex = Math.max(0, window.qualities.indexOf(window.editing.quality))
                                             editDialog.open()
                                         }
                                     }

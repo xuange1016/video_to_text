@@ -18,8 +18,8 @@ from PySide6.QtGui import QDesktopServices, QFontDatabase, QGuiApplication, QIco
 from PySide6.QtQml import QQmlApplicationEngine
 
 from engine import MAX_PARALLEL, MODEL_SIZES, check_output, model_path, output_path, result_text, timestamp, Transcriber
-from platforms import Cancelled, Media, MESSAGES, Platforms
-from storage import Store, compact_title, run_batch
+from platforms import Cancelled, EXTENSIONS, Media, MESSAGES, Platforms
+from storage import KIND_LABELS, Store, compact_title, run_batch
 
 
 APP = Path(__file__).resolve().parent
@@ -30,7 +30,7 @@ os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Basic")
 def binary(name):
     name += ".exe" if sys.platform == "win32" else ""
     for root in (ASSETS, APP):
-        for path in (root / "tools" / name, root / ".build" / "tools" / name):
+        for path in (root / "tools" / name, root / ".build" / "tools" / name, root / ".build" / "release-tools" / name):
             if path.is_file():
                 return str(path)
     return shutil.which(name)
@@ -62,6 +62,8 @@ class Controller(QObject):
         self.temp.mkdir(exist_ok=True)
         self.models = data / "models"
         self.models.mkdir(exist_ok=True)
+        self.media_cache = data / "media-cache"
+        self.media_cache.mkdir(exist_ok=True)
         self.store = Store(data / "tasks.sqlite3")
         documents = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
         self._settings = self.store.settings({"root": str(Path(documents) / "片语导出"),
@@ -71,6 +73,7 @@ class Controller(QObject):
         self._small_download = {"status": "idle", "progress": None, "message": ""}
         self._small_stop = threading.Event()
         self._inputs = []
+        self._import_kind = "transcribe"
         self._checked = set()
         self._duplicates = 0
         self._folders = []
@@ -136,13 +139,31 @@ class Controller(QObject):
     @Property("QVariantList", notify=stateChanged)
     def inputs(self):
         return [media.__dict__ | {"checked": media.key in self._checked,
-                                  "displayTitle": compact_title(media.title)} for media in self._inputs]
+                                  "displayTitle": compact_title(media.title), "usable": self.import_usable(media),
+                                  "unavailableReason": media.error or (
+                                      "此文件已在本机，可选择提取文案。" if not self.import_usable(media) else "")}
+                for media in self._inputs]
+
+    @Property(str, notify=stateChanged)
+    def importKind(self):
+        return self._import_kind
+
+    def import_usable(self, media):
+        return not media.error and (self._import_kind != "download" or media.source != "本地文件")
+
+    @Slot(str)
+    def setImportKind(self, kind):
+        if kind in KIND_LABELS:
+            self._import_kind = kind
+            self._checked.intersection_update(media.key for media in self._inputs if self.import_usable(media))
+            self.stateChanged.emit()
 
     @Property("QVariantMap", notify=stateChanged)
     def counts(self):
         return {**{source: sum(1 for m in self._inputs if m.source == source and not m.error)
                    for source in ("抖音", "B 站", "本地文件")},
-                "duplicates": self._duplicates, "invalid": sum(bool(m.error) for m in self._inputs)}
+                "duplicates": self._duplicates, "invalid": sum(bool(m.error) for m in self._inputs),
+                "unavailable": sum(not self.import_usable(m) for m in self._inputs)}
 
     @Property(int, notify=stateChanged)
     def selectedCount(self):
@@ -205,6 +226,49 @@ class Controller(QObject):
         self._folders = [item for item in self._folders if item != folder]
         self.stateChanged.emit()
 
+    @Slot("QVariantList", str, result="QVariantMap")
+    def acceptDrop(self, urls, text):
+        if self._task:
+            self.feedback.emit("正在解析，完成后可继续拖入素材。")
+            return {"text": "", "foldersAdded": 0, "rejected": 0}
+        entries, added, rejected = [], 0, 0
+        seen = set()
+        for value in urls:
+            url = QUrl(str(value))
+            if url.isLocalFile():
+                try:
+                    path = Path(url.toLocalFile()).resolve(strict=True)
+                    identity = str(path).casefold()
+                    if identity in seen:
+                        continue
+                    seen.add(identity)
+                    if path.is_dir():
+                        if identity not in {folder.casefold() for folder in self._folders}:
+                            self._folders.append(str(path))
+                            added += 1
+                    elif path.is_file() and path.suffix.lower().lstrip(".") in EXTENSIONS:
+                        entries.append('"' + str(path) + '"')
+                    else:
+                        rejected += 1
+                except (OSError, ValueError):
+                    rejected += 1
+            elif url.scheme().lower() in {"http", "https"}:
+                ref = url.toString()
+                if ref not in seen:
+                    entries.append(ref)
+                    seen.add(ref)
+            else:
+                rejected += 1
+        if not urls and text.strip():
+            entries.append(text.strip())
+        self.stateChanged.emit()
+        total = len(entries) + added
+        message = f"已接收 {total} 项，请点击解析素材。" if total else "请拖入视频、音频、文件夹或视频分享链接。"
+        if rejected:
+            message += f" 跳过了 {rejected} 项不支持或无法读取的内容。"
+        self.feedback.emit(message)
+        return {"text": "\n".join(entries), "foldersAdded": added, "rejected": rejected}
+
     @Slot(str)
     def resolve(self, text):
         if not text.strip() and not self._folders:
@@ -215,13 +279,13 @@ class Controller(QObject):
 
     @Slot(str, bool)
     def selectItem(self, key, checked):
-        if key:
+        if key and (not checked or any(m.key == key and self.import_usable(m) for m in self._inputs)):
             (self._checked.add if checked else self._checked.discard)(key)
             self.stateChanged.emit()
 
     @Slot()
     def selectAll(self):
-        available = {m.key for m in self._inputs if not m.error}
+        available = {m.key for m in self._inputs if self.import_usable(m)}
         self._checked = set() if self._checked == available else available
         self.stateChanged.emit()
 
@@ -391,23 +455,28 @@ class Controller(QObject):
             self.schedule(self.store.jobs_to_run(batch))
 
     @Slot(str, str, str, result=bool)
-    def enqueue(self, root, model, formats):
-        batch = self.create_selection(root, model, formats, waiting=True)
+    @Slot(str, str, str, str, str, result=bool)
+    def enqueue(self, root, model, formats, kind="transcribe", quality="720"):
+        batch = self.create_selection(root, model, formats, waiting=True, kind=kind, quality=quality)
         if not batch:
             return False
         self.newBatch()
         self.feedback.emit("素材已加入等待队列。")
         return True
 
-    def create_selection(self, root, model, formats, *, waiting):
-        items = [m for m in self._inputs if m.key in self._checked and not m.error]
+    def create_selection(self, root, model, formats, *, waiting, kind="transcribe", quality="720"):
+        items = [m for m in self._inputs if m.key in self._checked and not m.error
+                 and (kind != "download" or m.source != "本地文件")]
         if not items or self._task or self._exit:
             return None
         try:
             options = self.options(root, model, formats)
+            if kind not in KIND_LABELS or quality not in {"720", "1080", "best"}:
+                raise ValueError("请选择任务类型和视频清晰度。")
+            options.update(kind=kind, quality=quality)
             if waiting:
-                current = {row["key"] for row in self.store.waiting_jobs() + self.store.active_jobs()}
-                items = [media for media in items if media.key not in current]
+                current = {(row["key"], row["kind"]) for row in self.store.waiting_jobs() + self.store.active_jobs()}
+                items = [media for media in items if (media.key, kind) not in current]
                 if not items:
                     self.feedback.emit("所选素材已在任务队列中。")
                     return None
@@ -417,9 +486,13 @@ class Controller(QObject):
             return None
 
     @Slot(int, str, str, str, str, result=bool)
-    def editWaiting(self, job, alias, root, model, formats):
+    @Slot(int, str, str, str, str, str, result=bool)
+    def editWaiting(self, job, alias, root, model, formats, quality="720"):
         try:
             options = self.options(root, model, formats)
+            if quality not in {"720", "1080", "best"}:
+                raise ValueError("请选择可用的视频清晰度。")
+            options["quality"] = quality
             updated = self.store.edit_waiting(job, alias, options)
         except ValueError as exc:
             self.feedback.emit(str(exc))
@@ -427,6 +500,46 @@ class Controller(QObject):
         self.refresh()
         self.feedback.emit("任务已更新。" if updated else "任务已离开等待队列。")
         return updated
+
+    @Slot("QVariantList", str, str, str, str, result=int)
+    def bulkEditWaiting(self, jobs, root, model, formats, quality):
+        try:
+            patch = {}
+            if root.strip():
+                patch["root"] = str(output_path(root))
+            if model:
+                if model not in MODEL_SIZES:
+                    raise ValueError("请选择可用的转写模型。")
+                patch["model"] = model
+            if formats:
+                if formats not in {"txt", "srt", "both"}:
+                    raise ValueError("请选择可用的导出格式。")
+                patch["format"] = formats
+            if quality:
+                if quality not in {"720", "1080", "best"}:
+                    raise ValueError("请选择可用的视频清晰度。")
+                patch["quality"] = quality
+            if not patch:
+                raise ValueError("请先选择需要调整的配置。")
+            ids = sorted({int(job) for job in jobs if int(job) > 0})
+            count = self.store.edit_waiting_many(ids, patch)
+        except (ValueError, TypeError) as exc:
+            self.feedback.emit(str(exc))
+            return 0
+        self.refresh()
+        self.feedback.emit(f"已更新 {count} 条等待任务。")
+        return count
+
+    @Slot("QVariantList", result=int)
+    def removeWaitingMany(self, jobs):
+        try:
+            ids = sorted({int(job) for job in jobs if int(job) > 0})
+        except (ValueError, TypeError):
+            return 0
+        count = self.store.delete_waiting_many(ids)
+        self.refresh()
+        self.feedback.emit(f"已移除 {count} 条等待任务。")
+        return count
 
     @Slot(int)
     def removeWaiting(self, job):
@@ -477,6 +590,8 @@ class Controller(QObject):
             return
         media = Media(**json.loads(original["media"]))
         options = json.loads(original["options"])
+        if options.get("kind", "transcribe") != "transcribe":
+            return
         if original["target"]:
             options["root"] = original["target"]
 
@@ -522,6 +637,15 @@ class Controller(QObject):
         except (ValueError, OSError):
             pass
         self.feedback.emit("无法打开目录。请先确认它存在且可访问。")
+
+    @Slot(int)
+    def openVideo(self, job):
+        record = self.store.item(job)
+        if not record or record["status"] != "done" or json.loads(record["options"]).get("kind") != "download":
+            return
+        target = Path(record["destination"]) / "视频.mp4"
+        if not target.is_file() or not QDesktopServices.openUrl(QUrl.fromLocalFile(str(target))):
+            self.feedback.emit("无法打开视频。请检查文件或选择可播放该格式的播放器。")
 
     def start(self, kind, work):
         if self._task or self._exit:
@@ -571,7 +695,7 @@ class Controller(QObject):
             platform = Platforms(self.platforms.ffprobe, self.platforms.ytdlp)
             with platform.session:
                 run_batch(self.store, batch, job, "", platform, self.transcriber, self.ffmpeg, self.temp,
-                          lambda: None, stop.is_set, observe=self.observe_progress)
+                          lambda: None, stop.is_set, observe=self.observe_progress, media_cache=self.media_cache)
         except Exception:
             logging.exception("Queue operation failed for job %s", job)
             error = MESSAGES["unexpected"]
@@ -589,7 +713,7 @@ class Controller(QObject):
             self._pending.pop(job)
             record = self.store.item(job)
             if record["result"]:
-                self.store.change(job, status="save_pending", progress=None, error="已取消，可补存文稿。")
+                self.store.change(job, status="save_pending", progress=None, error="已取消，可补存结果。")
             else:
                 self.store.change(job, status="cancelled", progress=None, error="已取消，可单独重试。")
         elif job in self._inflight:
@@ -611,7 +735,7 @@ class Controller(QObject):
 
     def observe_progress(self, job, stage, progress):
         with self._estimate_lock:
-            if stage not in {"transcribing", "audio"} or progress is None:
+            if stage not in {"transcribing", "audio", "downloading"} or progress is None:
                 self._estimates.pop(job, None)
                 return
             now = time.monotonic()
@@ -660,14 +784,15 @@ class Controller(QObject):
         active = [self.add_estimate(row, estimates, now) for row in self.store.active_jobs()]
         waiting = self.store.waiting_jobs()
         history = self.store.list_batches()
-        if active != self._active_jobs:
-            self._active_jobs = active
+        active_changed = active != self._active_jobs
+        waiting_changed = waiting != self._waiting
+        history_changed = history != self._history
+        self._active_jobs, self._waiting, self._history = active, waiting, history
+        if active_changed:
             self.activeChanged.emit()
-        if waiting != self._waiting:
-            self._waiting = waiting
+        if waiting_changed:
             self.queueChanged.emit()
-        if history != self._history:
-            self._history = history
+        if history_changed:
             self.historyChanged.emit()
         selected = next((m for m in jobs if m["id"] == self._job), None)
         if not selected and jobs:
@@ -675,7 +800,13 @@ class Controller(QObject):
             self._job = selected["id"]
         detail = dict(selected or {})
         if selected and selected["hasResult"]:
-            if self._detail.get("id") == self._job and "text" in self._detail:
+            if selected["kind"] == "download":
+                record = json.loads(self.store.item(self._job)["result"])
+                detail.update(resultType="video", videoInfo=record, videoSize=record.get("bytes", 0),
+                              duration=record.get("duration") or selected["duration"],
+                              videoWidth=record.get("width", 0), videoHeight=record.get("height", 0),
+                              outputFile=str(Path(selected["destination"]) / "视频.mp4") if selected["status"] == "done" else "")
+            elif self._detail.get("id") == self._job and "text" in self._detail:
                 detail.update({key: self._detail[key] for key in ("transcriptSource", "text", "timeline")})
             else:
                 record = json.loads(self.store.item(self._job)["result"])

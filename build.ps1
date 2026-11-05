@@ -4,7 +4,7 @@ Set-Location -LiteralPath $PSScriptRoot
 $root = $PSScriptRoot
 $env:PYINSTALLER_CONFIG_DIR = Join-Path $root '.build/pyinstaller-cache'
 $env:PYTHONUSERBASE = Join-Path $root '.build/python-user'
-$version = '1.2.0'
+$version = '1.3.0'
 $release = Join-Path $root ".build/release/$version/Pianyu"
 
 if (-not $PackageOnly) {
@@ -39,12 +39,12 @@ if (-not $PackageOnly) {
     New-Item -ItemType Directory -Path "$release/ui","$release/tools","$release/browsers" -Force | Out-Null
     Copy-Item -Path '.build/release-tools/*' -Destination "$release/tools" -Force
     Copy-Item -Path '.build/browsers/chromium-*','.build/browsers/ffmpeg-*','.build/browsers/winldd-*' -Destination "$release/browsers" -Recurse -Force
-    Copy-Item -LiteralPath 'README.md','THIRD_PARTY.md' -Destination $release -Force
 }
 
 if (-not (Test-Path -LiteralPath "$release/Pianyu.exe")) { throw 'Pianyu.exe is missing from the staged release.' }
 Copy-Item -Path 'ui/*' -Destination "$release/ui" -Recurse -Force
 Copy-Item -Path '.build/fonts/*' -Destination "$release/ui" -Force
+Copy-Item -LiteralPath 'README.md','THIRD_PARTY.md' -Destination $release -Force
 if ($PortableOnly) { Write-Output "$release/Pianyu.exe"; return }
 & '.\.build\inno\ISCC.exe' "/DAppVersion=$version" '.\packaging.iss'
 if ($LASTEXITCODE) { throw 'Inno Setup compilation failed.' }
