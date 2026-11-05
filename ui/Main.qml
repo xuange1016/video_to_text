@@ -40,14 +40,14 @@ ApplicationWindow {
     readonly property var formats: ["both", "txt", "srt"]
     readonly property var modelLabels: ["快速 · small", "均衡 · medium"]
     readonly property var formatLabels: ["TXT + SRT", "TXT · 纯文案", "SRT · 带时间码"]
-    readonly property var kinds: ["transcribe", "download"]
-    readonly property var kindLabels: ["提取文案", "保存视频"]
     readonly property var qualities: ["720", "1080", "best"]
     readonly property var qualityLabels: ["最高 720p", "最高 1080p", "最佳可用"]
     property string page: "work"
     property string draft: ""
-    property string batchFolder: appState.settings.root
-    property string batchKind: "transcribe"
+    property string downloadDraft: ""
+    property string downloadParsedText: ""
+    property string batchFolder: ""
+    property string downloadFolder: ""
     property string settingsFolder: appState.settings.root
     property bool timeline: false
     property bool chooseSettingFolder: false
@@ -59,12 +59,18 @@ ApplicationWindow {
     property var editing: ({})
     property var removing: ({})
     property var queueIndex: ({})
+    property var downloadIndex: ({})
     property var selectedWaiting: []
     property var bulkTargets: []
     property string bulkError: ""
-    readonly property bool parsing: appState.task === "resolve"
+    readonly property bool parsing: appState.resolvingKind === "transcribe"
+    readonly property bool parsingDownloads: appState.resolvingKind === "download"
+    readonly property bool parserBusy: appState.resolvingKind !== ""
+    readonly property bool currentDownloadLinks: appState.importKind === "download" && appState.stage === 2 &&
+                                                downloadDraft.trim() === downloadParsedText.trim()
     readonly property bool smallBusy: ["downloading", "stopping"].includes(appState.smallDownload.status)
     readonly property var queueJobs: appState.activeJobs.concat(appState.waitingJobs)
+    readonly property var downloadItems: appState.downloadJobs
     readonly property int completed: appState.jobs.filter(function(job) { return job.status === "done" }).length
     readonly property int retryable: appState.jobs.filter(function(job) {
         return ["failed", "interrupted", "cancelled", "save_pending"].includes(job.status)
@@ -74,11 +80,17 @@ ApplicationWindow {
     readonly property var selectedWaitingJobs: appState.waitingJobs.filter(function(job) { return selectedWaiting.includes(job.id) })
     readonly property bool bulkHasText: selectedWaitingJobs.some(function(job) { return job.kind !== "download" })
     readonly property bool bulkHasVideo: selectedWaitingJobs.some(function(job) { return job.kind === "download" })
-    onBatchKindChanged: appState.setImportKind(batchKind)
     onQueueJobsChanged: if (queueModel) syncQueue()
-    Component.onCompleted: syncQueue()
+    onDownloadItemsChanged: if (downloadModel) syncDownloads()
+    Component.onCompleted: {
+        batchFolder = appState.settings.root
+        downloadFolder = appState.settings.root
+        syncQueue()
+        syncDownloads()
+    }
 
     ListModel { id: queueModel; objectName: "queueModel" }
+    ListModel { id: downloadModel; objectName: "downloadModel" }
 
     function syncQueue() {
         const next = {}
@@ -108,6 +120,33 @@ ApplicationWindow {
         }
     }
 
+    function syncDownloads() {
+        const next = {}
+        const order = []
+        const priorities = {queued: 0, media: 0, downloading: 0, muxing: 0, saving: 0, waiting: 1}
+        const ordered = downloadItems.slice().sort(function(a, b) {
+            const first = priorities[a.status] === undefined ? 2 : priorities[a.status]
+            const second = priorities[b.status] === undefined ? 2 : priorities[b.status]
+            return first - second || (first === 2 ? b.id - a.id : a.id - b.id)
+        })
+        for (const job of ordered) {
+            if (next[job.id]) continue
+            next[job.id] = job
+            order.push(job.id)
+        }
+        downloadIndex = next
+        for (let i = downloadModel.count - 1; i >= 0; --i)
+            if (!next[downloadModel.get(i).jobId]) downloadModel.remove(i)
+        for (let i = 0; i < order.length; ++i) {
+            const id = order[i]
+            if (i < downloadModel.count && downloadModel.get(i).jobId === id) continue
+            let previous = i + 1
+            while (previous < downloadModel.count && downloadModel.get(previous).jobId !== id) ++previous
+            if (previous < downloadModel.count) downloadModel.move(previous, i, 1)
+            else downloadModel.insert(i, {jobId: id})
+        }
+    }
+
     function selectWaiting(id, checked) {
         if (checked && !selectedWaiting.includes(id)) selectedWaiting = selectedWaiting.concat([id])
         else if (!checked) selectedWaiting = selectedWaiting.filter(function(value) { return value !== id })
@@ -122,6 +161,20 @@ ApplicationWindow {
             message = "没有添加新素材。请检查文件、文件夹或分享链接。"
         else
             message = added.rejected ? "已添加可用素材。部分内容无法导入，请检查文件类型或链接。" : "素材已添加，解析后可确认任务。"
+        toastTimer.restart()
+    }
+
+    function receiveDownloadDrop(urls, text) {
+        const links = []
+        for (const item of urls) {
+            const value = item.toString()
+            if (/^https?:\/\//i.test(value)) links.push(value)
+        }
+        const added = links.length ? links.join("\n") : !urls.length ? (text || "").trim() : ""
+        if (added) {
+            downloadDraft = downloadDraft.trim() ? downloadDraft.replace(/\s+$/, "") + "\n" + added : added
+            message = "链接已添加，解析后可确认下载任务。"
+        } else message = "请拖入抖音或 B 站等视频平台的分享链接。"
         toastTimer.restart()
     }
 
@@ -156,7 +209,8 @@ ApplicationWindow {
     }
 
     function navigate(target) {
-        if (target === "work" && appState.stage === 3) appState.newBatch()
+        if (target === "work") appState.activateImport("transcribe")
+        else if (target === "download") appState.activateImport("download")
         window.message = ""
         window.page = target
     }
@@ -233,6 +287,11 @@ ApplicationWindow {
                     ctx.moveTo(4, 14); ctx.lineTo(4, 19); ctx.lineTo(20, 19); ctx.lineTo(20, 14)
                     ctx.moveTo(12, 4); ctx.lineTo(12, 14)
                     ctx.moveTo(8, 10); ctx.lineTo(12, 14); ctx.lineTo(16, 10)
+                } else if (control.navGlyph === "download") {
+                    ctx.moveTo(5, 16); ctx.lineTo(5, 20); ctx.lineTo(19, 20); ctx.lineTo(19, 16)
+                    ctx.moveTo(12, 3); ctx.lineTo(12, 14)
+                    ctx.moveTo(8, 10); ctx.lineTo(12, 14); ctx.lineTo(16, 10)
+                    ctx.moveTo(18, 4); ctx.lineTo(21, 4)
                 } else if (control.navGlyph === "queue") {
                     for (let y = 6; y <= 18; y += 6) {
                         ctx.moveTo(4, y); ctx.lineTo(6, y)
@@ -538,6 +597,16 @@ ApplicationWindow {
         onAccepted: appState.retry(window.saveJob, window.localPath(selectedFolder))
     }
     FolderDialog {
+        id: downloadOutputDialog
+        title: "选择视频保存目录"
+        onAccepted: window.downloadFolder = window.localPath(selectedFolder)
+    }
+    FolderDialog {
+        id: downloadRecoverDialog
+        title: "换一个目录保存视频"
+        onAccepted: appState.retryDownload(window.saveJob, window.localPath(selectedFolder))
+    }
+    FolderDialog {
         id: bulkOutputDialog
         title: "选择所选任务的保存目录"
         onAccepted: bulkOutput.text = window.localPath(selectedFolder)
@@ -764,7 +833,7 @@ ApplicationWindow {
         }
         function onSettingsSaved() {
             window.settingsFolder = appState.settings.root
-            if (appState.stage === 1) {
+            if (appState.importKind === "transcribe" && appState.stage === 1) {
                 window.batchFolder = appState.settings.root
                 batchModel.currentIndex = window.models.indexOf(appState.settings.model)
                 batchFormat.currentIndex = window.formats.indexOf(appState.settings.format)
@@ -808,9 +877,18 @@ ApplicationWindow {
                     objectName: "navWork"
                     onRail: true
                     navGlyph: "import"
-                    text: "导入素材"
+                    text: "文案提取"
                     highlightedNav: window.page === "work"
                     onClicked: window.navigate("work")
+                }
+                Action {
+                    Layout.fillWidth: true
+                    objectName: "navDownload"
+                    onRail: true
+                    navGlyph: "download"
+                    text: "视频下载"
+                    highlightedNav: window.page === "download" || (window.page === "result" && window.resultBack === "download")
+                    onClicked: window.navigate("download")
                 }
                 Action {
                     Layout.fillWidth: true
@@ -866,15 +944,16 @@ ApplicationWindow {
                     Heading {
                         Layout.fillWidth: true
                         text: ({work: appState.stage === 2 ? "确认素材" : "导入素材",
+                                download: "视频下载",
                                 queue: "任务队列", result: "任务结果",
                                 history: "任务记录", settings: "设置"})[window.page]
                         font.pixelSize: 37
                     }
                     Action {
                         visible: window.page === "result"
-                        text: window.resultBack === "history" ? "返回任务记录" : "返回任务队列"
+                        text: window.resultBack === "history" ? "返回任务记录" : window.resultBack === "download" ? "返回视频下载" : "返回任务队列"
                         quiet: true
-                        onClicked: window.page = window.resultBack
+                        onClicked: window.navigate(window.resultBack)
                     }
                 }
                 Hint {
@@ -882,6 +961,7 @@ ApplicationWindow {
                     text: ({work: appState.stage === 2 ? "选好素材和导出方式，再把任务加入等待队列。"
                                                    : "粘贴视频分享文字或本地路径，也可以从文件夹批量导入。",
                             queue: "选择等待任务，可一起调整模型、格式、清晰度和保存目录。",
+                            download: "粘贴视频分享链接，核对后直接下载或加入等待队列。",
                             result: "选择一条任务，阅读文稿或打开已保存的视频。",
                             history: "打开批次，查看已生成的文稿或继续未完成的任务。",
                             settings: "设置新任务的默认保存位置、转写模型和同时处理数。"})[window.page]
@@ -891,7 +971,7 @@ ApplicationWindow {
             StackLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                currentIndex: ({work: 0, result: 0, history: 1, settings: 2, queue: 3})[window.page]
+                currentIndex: ({work: 0, result: 0, history: 1, settings: 2, queue: 3, download: 4})[window.page]
 
                 StackLayout {
                     currentIndex: window.page === "result" ? 2 : appState.stage === 2 ? 1 : 0
@@ -908,7 +988,7 @@ ApplicationWindow {
                             objectName: "importDropTarget"
                             anchors.fill: parent
                             z: 2
-                            enabled: !window.parsing
+                            enabled: !window.parserBusy
                             onEntered: function(drag) { drag.accepted = drag.hasUrls || drag.hasText }
                             onDropped: function(drop) {
                                 window.receiveDrop(drop.urls, drop.text)
@@ -962,20 +1042,14 @@ ApplicationWindow {
                             }
                             RowLayout {
                                 Layout.fillWidth: true
-                                Action { text: "选择文件夹"; enabled: !window.parsing; onClicked: sourceDialog.open() }
+                                Action { text: "选择文件夹"; enabled: !window.parserBusy; onClicked: sourceDialog.open() }
                                 Hint { text: "包括子文件夹"; Layout.fillWidth: true }
                                 Action {
                                     objectName: "resolveMaterials"
                                     text: window.parsing ? "正在解析…" : "解析素材"
                                     primary: true
-                                    enabled: !window.parsing && (window.draft.trim() !== "" || appState.folders.length > 0)
-                                    onClicked: {
-                                        window.batchFolder = appState.settings.root
-                                        batchOutput.text = appState.settings.root
-                                        batchModel.currentIndex = window.models.indexOf(appState.settings.model)
-                                        batchFormat.currentIndex = window.formats.indexOf(appState.settings.format)
-                                        appState.resolve(input.text)
-                                    }
+                                    enabled: !window.parserBusy && (window.draft.trim() !== "" || appState.folders.length > 0)
+                                    onClicked: appState.resolve(input.text)
                                 }
                             }
                             Flow {
@@ -1093,30 +1167,6 @@ ApplicationWindow {
                                     }
                                 }
                             }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: 10
-                                Label { text: "任务类型"; color: window.ink }
-                                Choice {
-                                    id: taskKind
-                                    objectName: "taskKind"
-                                    model: window.kindLabels
-                                    currentIndex: window.kinds.indexOf(window.batchKind)
-                                    Layout.preferredWidth: 166
-                                    Accessible.name: "任务类型"
-                                    onActivated: window.batchKind = window.kinds[currentIndex]
-                                }
-                                Label { visible: window.batchKind === "download"; text: "视频清晰度"; color: window.ink }
-                                Choice {
-                                    id: batchQuality
-                                    objectName: "batchQuality"
-                                    visible: window.batchKind === "download"
-                                    model: window.qualityLabels
-                                    Layout.preferredWidth: 166
-                                    Accessible.name: "视频清晰度"
-                                }
-                                Item { Layout.fillWidth: true }
-                            }
                             GridLayout {
                                 Layout.fillWidth: true
                                 columns: 4
@@ -1126,11 +1176,10 @@ ApplicationWindow {
                                 PathField { id: batchOutput; objectName: "batchOutput"; Layout.fillWidth: true; text: window.batchFolder
                                     selectByMouse: true; onTextEdited: window.batchFolder = text }
                                 Action { text: "浏览"; onClicked: { window.chooseEditingFolder = false; window.chooseSettingFolder = false; outputDialog.open() } }
-                                Hint { text: window.batchKind === "download" ? "MP4 · 来源可用画质" : "中文 · 简体输出"; font.pixelSize: 12 }
-                                Label { visible: window.batchKind !== "download"; text: "转写模型"; color: window.ink }
+                                Hint { text: "中文 · 简体输出"; font.pixelSize: 12 }
+                                Label { text: "转写模型"; color: window.ink }
                                 RowLayout {
-                                    visible: window.batchKind !== "download"
-                                    Choice { id: batchModel; model: window.modelLabels; Layout.preferredWidth: 166
+                                    Choice { id: batchModel; objectName: "batchModel"; model: window.modelLabels; Layout.preferredWidth: 166
                                         currentIndex: window.models.indexOf(appState.settings.model) }
                                     Hint {
                                         font.pixelSize: 12
@@ -1139,8 +1188,8 @@ ApplicationWindow {
                                                   (appState.modelsInfo[window.models[batchModel.currentIndex]]?.size || "")
                                     }
                                 }
-                                Label { visible: window.batchKind !== "download"; text: "导出格式"; color: window.ink }
-                                Choice { id: batchFormat; visible: window.batchKind !== "download"; model: window.formatLabels; Layout.preferredWidth: 161
+                                Label { text: "导出格式"; color: window.ink }
+                                Choice { id: batchFormat; objectName: "batchFormat"; model: window.formatLabels; Layout.preferredWidth: 161
                                     currentIndex: window.formats.indexOf(appState.settings.format) }
                             }
                             RowLayout {
@@ -1155,8 +1204,7 @@ ApplicationWindow {
                                     text: "加入等待队列"
                                     onClicked: {
                                         if (appState.enqueue(batchOutput.text, window.models[batchModel.currentIndex],
-                                                             window.formats[batchFormat.currentIndex], window.batchKind,
-                                                             window.qualities[batchQuality.currentIndex]) !== false) {
+                                                             window.formats[batchFormat.currentIndex]) !== false) {
                                             window.draft = ""
                                             window.page = "queue"
                                         }
@@ -1831,6 +1879,390 @@ ApplicationWindow {
                                     }
                                 }
                                 Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: window.border }
+                            }
+                        }
+                    }
+                }
+                ScrollView {
+                    id: downloadScroll
+                    objectName: "downloadScroll"
+                    clip: true
+                    contentWidth: availableWidth
+                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                    GridLayout {
+                        width: downloadScroll.availableWidth
+                        height: window.split ? downloadScroll.availableHeight : implicitHeight
+                        columns: window.split ? 2 : 1
+                        columnSpacing: 15
+                        rowSpacing: 15
+                        Surface {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: window.split
+                            Layout.preferredWidth: 590
+                            Layout.preferredHeight: window.split ? downloadScroll.availableHeight : downloadControls.implicitHeight + 32
+                            ColumnLayout {
+                                id: downloadControls
+                                anchors.fill: parent
+                                anchors.margins: 16
+                                spacing: 9
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Heading { Layout.fillWidth: true; text: "下载链接" }
+                                    Action {
+                                        objectName: "pasteDownloadLinks"
+                                        text: "粘贴链接"
+                                        quiet: true
+                                        onClicked: window.receiveDownloadDrop([], appState.clipboardText())
+                                    }
+                                    Action {
+                                        objectName: "clearDownloadLinks"
+                                        text: "清空"
+                                        quiet: true
+                                        enabled: !window.parsingDownloads && (window.downloadDraft !== "" || appState.inputs.length > 0)
+                                        onClicked: {
+                                            window.downloadDraft = ""
+                                            window.downloadParsedText = ""
+                                            appState.newBatch()
+                                        }
+                                    }
+                                }
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: window.split && !appState.inputs.length
+                                    Layout.preferredHeight: 112
+                                    Layout.minimumHeight: 90
+                                    radius: 10
+                                    color: window.inset
+                                    border.width: downloadDrop.containsDrag || downloadInput.activeFocus ? 2 : 0
+                                    border.color: window.leaf
+                                    ScrollView {
+                                        anchors.fill: parent
+                                        TextArea {
+                                            id: downloadInput
+                                            objectName: "downloadInput"
+                                            text: window.downloadDraft
+                                            onTextChanged: window.downloadDraft = text
+                                            placeholderText: "粘贴一条或多条视频链接\n也可直接粘贴抖音分享文字，或把链接拖到这里"
+                                            placeholderTextColor: window.muted
+                                            color: window.ink
+                                            selectionColor: window.accent
+                                            selectedTextColor: window.ivory
+                                            Accessible.name: "视频下载链接"
+                                            wrapMode: TextEdit.Wrap
+                                            selectByMouse: true
+                                            padding: 12
+                                            background: Item {}
+                                        }
+                                    }
+                                    DropArea {
+                                        id: downloadDrop
+                                        objectName: "downloadDropTarget"
+                                        anchors.fill: parent
+                                        enabled: !window.parserBusy
+                                        onEntered: function(drag) { drag.accepted = drag.hasUrls || drag.hasText }
+                                        onDropped: function(drop) { window.receiveDownloadDrop(drop.urls, drop.text); drop.acceptProposedAction() }
+                                    }
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        radius: 10
+                                        visible: downloadDrop.containsDrag
+                                        color: "#eff4e8"
+                                        border.width: 2
+                                        border.color: window.leaf
+                                        Heading { anchors.centerIn: parent; text: "松开以添加视频链接"; font.pixelSize: 17 }
+                                    }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Hint {
+                                        Layout.fillWidth: true
+                                        font.pixelSize: 12
+                                        text: appState.importKind === "download" && appState.inputs.length ?
+                                              "识别 " + appState.inputs.length + " 条，已选 " + appState.selectedCount + " 条" : "支持抖音、B 站分享链接"
+                                    }
+                                    Action {
+                                        objectName: "selectAllDownloads"
+                                        visible: appState.importKind === "download" && appState.inputs.length > 0
+                                        text: "全选可用"
+                                        quiet: true
+                                        enabled: window.currentDownloadLinks && !window.parsingDownloads
+                                        onClicked: appState.selectAll()
+                                    }
+                                    Action {
+                                        objectName: "resolveDownloads"
+                                        text: window.parsingDownloads ? "正在解析…" : "解析链接"
+                                        primary: true
+                                        enabled: !window.parserBusy && window.downloadDraft.trim() !== ""
+                                        onClicked: {
+                                            window.downloadParsedText = downloadInput.text
+                                            appState.resolve(downloadInput.text)
+                                        }
+                                    }
+                                }
+                                Hint {
+                                    objectName: "downloadLinksChanged"
+                                    Layout.fillWidth: true
+                                    visible: appState.importKind === "download" && appState.inputs.length > 0 && !window.currentDownloadLinks
+                                    text: "链接已修改，请重新解析后再下载。"
+                                    color: window.accent
+                                    font.pixelSize: 12
+                                }
+                                ListView {
+                                    id: recognizedDownloads
+                                    objectName: "recognizedDownloads"
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: window.split
+                                    Layout.preferredHeight: window.split ? 130 : Math.min(180, contentHeight)
+                                    Layout.minimumHeight: visible ? 74 : 0
+                                    visible: appState.importKind === "download" && appState.inputs.length > 0
+                                    clip: true
+                                    model: appState.importKind === "download" ? appState.inputs : []
+                                    ScrollBar.vertical: ScrollBar {}
+                                    delegate: Rectangle {
+                                        id: downloadMaterial
+                                        required property var modelData
+                                        width: ListView.view.width - 6
+                                        height: modelData.error || modelData.unavailableReason ? 61 : 45
+                                        radius: 5
+                                        color: modelData.checked ? window.leafWash : downloadMaterialHover.hovered ? "#f3f1e5" : window.ivory
+                                        HoverHandler { id: downloadMaterialHover }
+                                        Behavior on color { enabled: window.motion; ColorAnimation { duration: 120 } }
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.leftMargin: 2
+                                            anchors.rightMargin: 6
+                                            spacing: 4
+                                            CheckBox {
+                                                objectName: "selectDownload_" + downloadMaterial.modelData.key
+                                                checked: downloadMaterial.modelData.checked
+                                                enabled: window.currentDownloadLinks && downloadMaterial.modelData.usable !== false && !downloadMaterial.modelData.error
+                                                Accessible.name: downloadMaterial.modelData.title
+                                                onClicked: appState.selectItem(downloadMaterial.modelData.key, checked)
+                                            }
+                                            ColumnLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 1
+                                                Label { Layout.fillWidth: true; text: downloadMaterial.modelData.title; textFormat: Text.PlainText; elide: Text.ElideRight; color: window.ink }
+                                                Hint {
+                                                    Layout.fillWidth: true
+                                                    visible: text !== ""
+                                                    text: downloadMaterial.modelData.error || downloadMaterial.modelData.unavailableReason || ""
+                                                    font.pixelSize: 11
+                                                    maximumLineCount: 2
+                                                    elide: Text.ElideRight
+                                                }
+                                            }
+                                            Status { label: downloadMaterial.modelData.source }
+                                        }
+                                    }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Label { text: "保存目录"; color: window.ink }
+                                    PathField {
+                                        id: downloadRoot
+                                        objectName: "downloadRoot"
+                                        Layout.fillWidth: true
+                                        text: window.downloadFolder
+                                        Accessible.name: "视频下载保存目录"
+                                        onTextEdited: window.downloadFolder = text
+                                    }
+                                    Action { text: "浏览"; objectName: "browseDownloadRoot"; onClicked: downloadOutputDialog.open() }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Label { text: "视频清晰度"; color: window.ink }
+                                    Choice {
+                                        id: downloadQuality
+                                        objectName: "downloadQuality"
+                                        model: window.qualityLabels
+                                        Layout.preferredWidth: 166
+                                        Accessible.name: "下载视频清晰度"
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    Hint { text: "MP4"; font.pixelSize: 12 }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Action {
+                                        objectName: "submitDownloads"
+                                        text: "加入下载队列"
+                                        enabled: window.currentDownloadLinks && appState.selectedCount > 0 && !window.parsingDownloads
+                                        onClicked: {
+                                            const batch = appState.enqueueDownloads(downloadRoot.text, window.qualities[downloadQuality.currentIndex], false)
+                                            if (batch > 0 && !window.split) downloadScroll.contentItem.contentY = downloadTasksSurface.y
+                                        }
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    Action {
+                                        objectName: "startDownloads"
+                                        text: "开始下载 " + (appState.importKind === "download" ? appState.selectedCount : 0) + " 条"
+                                        primary: true
+                                        enabled: window.currentDownloadLinks && appState.selectedCount > 0 && !window.parsingDownloads
+                                        onClicked: {
+                                            const batch = appState.enqueueDownloads(downloadRoot.text, window.qualities[downloadQuality.currentIndex], true)
+                                            if (batch > 0 && !window.split) downloadScroll.contentItem.contentY = downloadTasksSurface.y
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Surface {
+                            id: downloadTasksSurface
+                            Layout.fillWidth: true
+                            Layout.fillHeight: window.split
+                            Layout.preferredWidth: 380
+                            Layout.preferredHeight: window.split ? downloadScroll.availableHeight : 370
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: 16
+                                spacing: 11
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Heading { Layout.fillWidth: true; text: "下载任务 " + appState.downloadJobs.length }
+                                    Hint {
+                                        text: "处理中 " + appState.downloadJobs.filter(function(job) { return ["media", "downloading", "muxing", "saving"].includes(job.status) }).length
+                                        font.pixelSize: 12
+                                        color: window.leaf
+                                    }
+                                    Action {
+                                        visible: !window.split
+                                        text: "回到链接"
+                                        quiet: true
+                                        onClicked: downloadScroll.contentItem.contentY = 0
+                                    }
+                                }
+                                Hint {
+                                    visible: !appState.downloadJobs.length
+                                    Layout.fillWidth: true
+                                    text: "解析并勾选链接后，点击开始下载。等待、进度和已保存的视频都会显示在这里。"
+                                }
+                                ListView {
+                                    id: downloadTaskList
+                                    objectName: "downloadTaskList"
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    clip: true
+                                    model: downloadModel
+                                    spacing: 7
+                                    ScrollBar.vertical: ScrollBar {}
+                                    delegate: Rectangle {
+                                        id: downloadRow
+                                        required property int jobId
+                                        readonly property var job: window.downloadIndex[jobId] || ({})
+                                        readonly property bool active: ["queued", "media", "downloading", "muxing", "saving"].includes(job.status)
+                                        width: ListView.view.width - 6
+                                        height: downloadRowContent.implicitHeight + 22
+                                        radius: 10
+                                        color: downloadTaskHover.hovered ? "#f2f3e8" : "#f7f4ec"
+                                        HoverHandler { id: downloadTaskHover }
+                                        Behavior on color { enabled: window.motion; ColorAnimation { duration: 120 } }
+                                        ColumnLayout {
+                                            id: downloadRowContent
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            anchors.top: parent.top
+                                            anchors.margins: 11
+                                            spacing: 7
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                Label {
+                                                    Layout.fillWidth: true
+                                                    text: window.jobTitle(downloadRow.job)
+                                                    textFormat: Text.PlainText
+                                                    color: window.ink
+                                                    font.weight: Font.DemiBold
+                                                    elide: Text.ElideRight
+                                                    ToolTip.visible: downloadTitleHover.hovered
+                                                    ToolTip.text: downloadRow.job.title || ""
+                                                    HoverHandler { id: downloadTitleHover }
+                                                }
+                                                Status { label: downloadRow.job.stateLabel || ""; status: downloadRow.job.status || "" }
+                                            }
+                                            Hint { Layout.fillWidth: true; text: (downloadRow.job.source || "") + " · " + window.duration(downloadRow.job.duration); font.pixelSize: 12 }
+                                            Hint {
+                                                objectName: "downloadProgress_" + downloadRow.jobId
+                                                Layout.fillWidth: true
+                                                visible: window.measured(downloadRow.job)
+                                                text: visible ? window.progressLabel(downloadRow.job) : ""
+                                                font.pixelSize: 12
+                                                color: window.leaf
+                                            }
+                                            Meter {
+                                                Layout.fillWidth: true
+                                                visible: downloadRow.active && downloadRow.job.status !== "queued"
+                                                indeterminate: !window.measured(downloadRow.job)
+                                                flowing: true
+                                                value: indeterminate ? 0 : downloadRow.job.progress
+                                                Accessible.name: "视频下载进度"
+                                            }
+                                            Hint {
+                                                Layout.fillWidth: true
+                                                visible: Boolean(downloadRow.job.error)
+                                                text: downloadRow.job.error || ""
+                                                color: window.accent
+                                                font.pixelSize: 12
+                                                maximumLineCount: 3
+                                                elide: Text.ElideRight
+                                            }
+                                            Flow {
+                                                Layout.fillWidth: true
+                                                spacing: 5
+                                                Action {
+                                                    objectName: "startDownload_" + downloadRow.jobId
+                                                    visible: downloadRow.job.status === "waiting"
+                                                    text: "开始"
+                                                    onClicked: appState.startWaiting(downloadRow.jobId)
+                                                }
+                                                Action {
+                                                    visible: downloadRow.job.status === "waiting"
+                                                    text: "移除"
+                                                    quiet: true
+                                                    onClicked: appState.removeWaiting(downloadRow.jobId)
+                                                }
+                                                Action {
+                                                    objectName: "cancelDownload_" + downloadRow.jobId
+                                                    visible: downloadRow.active
+                                                    enabled: !downloadRow.job.stopping
+                                                    text: downloadRow.job.stopping ? "正在停止" : "取消"
+                                                    quiet: true
+                                                    onClicked: appState.cancelJob(downloadRow.jobId)
+                                                }
+                                                Action {
+                                                    objectName: "retryDownload_" + downloadRow.jobId
+                                                    visible: ["failed", "cancelled", "interrupted"].includes(downloadRow.job.status)
+                                                    text: "重试"
+                                                    onClicked: appState.retryDownload(downloadRow.jobId, "")
+                                                }
+                                                Action {
+                                                    visible: downloadRow.job.status === "save_pending"
+                                                    text: "更换目录补存"
+                                                    onClicked: { window.saveJob = downloadRow.jobId; downloadRecoverDialog.open() }
+                                                }
+                                                Action {
+                                                    objectName: "playDownload_" + downloadRow.jobId
+                                                    visible: downloadRow.job.status === "done"
+                                                    text: "播放视频"
+                                                    onClicked: appState.openVideo(downloadRow.jobId)
+                                                }
+                                                Action {
+                                                    objectName: "openDownloadFolder_" + downloadRow.jobId
+                                                    visible: downloadRow.job.status === "done"
+                                                    text: "保存目录"
+                                                    quiet: true
+                                                    onClicked: appState.openFolder(downloadRow.job.destination)
+                                                }
+                                                Action {
+                                                    objectName: "viewDownload_" + downloadRow.jobId
+                                                    visible: !["waiting", "queued"].includes(downloadRow.job.status)
+                                                    text: "详情"
+                                                    quiet: true
+                                                    onClicked: window.openResult(downloadRow.job.batch, downloadRow.jobId, "download")
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

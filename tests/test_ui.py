@@ -225,6 +225,13 @@ def test_drag_drop_bulk_waiting_and_video_result(tmp_path, monkeypatch):
         point = control.mapToScene(QPointF(control.width() / 2, control.height() / 2)).toPoint()
         QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, point)
 
+    def choose(name, index):
+        click(name)
+        QTest.keyClick(window, Qt.Key_Home)
+        for _ in range(index):
+            QTest.keyClick(window, Qt.Key_Down)
+        QTest.keyClick(window, Qt.Key_Return)
+
     def wait(predicate):
         for _ in range(160):
             if predicate():
@@ -254,21 +261,54 @@ def test_drag_drop_bulk_waiting_and_video_result(tmp_path, monkeypatch):
     assert controller.folders == [str(folder)]
     click("resolveMaterials")
     wait(lambda: controller.stage == 2)
-    click("taskKind")
-    QTest.keyClick(window, Qt.Key_Down)
-    QTest.keyClick(window, Qt.Key_Return)
-    wait(lambda: controller.importKind == "download")
     click("selectAllMaterials")
+    assert controller.selectedCount == 3
+    text_root = str(tmp_path / "文案专用目录")
+    window.setProperty("batchFolder", text_root)
+    choose("batchModel", 0)
+    choose("batchFormat", 1)
+    click("navDownload")
+    assert controller.importKind == "download" and not controller.inputs
+    assert find("downloadInput").property("text") == ""
+    download_text = "抖音分享文字 https://v.douyin.com/example/\nhttps://www.bilibili.com/video/BVtest/"
+    find("downloadInput").setProperty("text", download_text)
+    click("resolveDownloads")
+    wait(lambda: len(controller.inputs) == 3)
+    click("selectAllDownloads")
     assert controller.selectedCount == 2
     assert next(row for row in controller.inputs if row["source"] == "本地文件")["usable"] is False
-    find("batchQuality").setProperty("currentIndex", 1)
-    snapshot("12-confirm-download.png")
-    click("submitBatch")
+    download_root = str(tmp_path / "视频专用目录")
+    window.setProperty("downloadFolder", download_root)
+    choose("downloadQuality", 1)
+    click("navWork")
+    assert controller.importKind == "transcribe" and controller.stage == 2
+    assert controller.selectedCount == 3
+    assert original in find("sourceInput").property("text")
+    assert find("batchOutput").property("text") == text_root
+    assert find("batchModel").property("currentIndex") == 0
+    assert find("batchFormat").property("currentIndex") == 1
+    click("navDownload")
+    assert controller.selectedCount == 2 and len(controller.inputs) == 3
+    assert find("downloadInput").property("text") == download_text
+    assert find("downloadRoot").property("text") == download_root
+    assert find("downloadQuality").property("currentIndex") == 1
+    snapshot("12-dedicated-download.png")
+    find("downloadInput").setProperty("text", download_text + "\nhttps://v.douyin.com/another/")
+    assert not find("submitDownloads").property("enabled")
+    assert not find("startDownloads").property("enabled")
+    assert find("downloadLinksChanged").property("visible")
+    find("downloadInput").setProperty("text", download_text)
+    click("submitDownloads")
     wait(lambda: len(controller.waitingJobs) == 2)
+    assert window.property("page") == "download"
+    assert find("downloadInput").property("text") == download_text
+    assert controller.selectedCount == 0 and len(controller.inputs) == 3
+    assert find("startDownload_" + str(controller.waitingJobs[0]["id"]))
     download_jobs = controller.waitingJobs[:]
     assert all(job["kind"] == "download" and job["quality"] == "1080" for job in download_jobs)
     controller.store.create([local_media], options | {"kind": "transcribe"}, waiting=True)
     controller.refresh()
+    click("navQueue")
     wait(lambda: find("queueModel").property("count") == 3)
     click("selectAllWaiting")
     click("bulkEditWaiting")
@@ -289,32 +329,75 @@ def test_drag_drop_bulk_waiting_and_video_result(tmp_path, monkeypatch):
     click("confirmRemoveWaitingMany")
     assert local_file.is_file() and len(controller.waitingJobs) == 2
     assert window.property("selectedWaiting").toVariant() == []
+    chosen = download_jobs[0]
+    started, finish_download = Event(), Event()
+
+    def fake_video(_platforms, _ffmpeg, media, job_options, _temp, report, _cancel):
+        report("downloading", .4)
+        started.set()
+        assert finish_download.wait(8)
+        return {"kind": "video", "path": str(tmp_path / "staged.mp4"), "bytes": 2048, "width": 1280, "height": 720, "duration": 5}
+
+    def fake_publish(root, title, _suffix, _result, _reserved, remember, _cancel):
+        destination = Path(root) / title
+        destination.mkdir(parents=True, exist_ok=True)
+        (destination / "视频.mp4").write_bytes(b"mock-video-result")
+        remember(str(destination))
+        return str(destination)
+
+    monkeypatch.setattr("storage.download_video", fake_video)
+    monkeypatch.setattr("storage.publish_video", fake_publish)
+    click("navDownload")
+    click(f"startDownload_{chosen['id']}")
+    try:
+        wait(lambda: started.is_set() and controller.running)
+        wait(lambda: "40%" in find(f"downloadProgress_{chosen['id']}").property("text"))
+        assert window.property("page") == "download"
+        snapshot("14-download-progress.png")
+    finally:
+        finish_download.set()
+    wait(lambda: not controller.running)
+    assert controller.store.item(chosen["id"])["status"] == "done"
+    opened = []
+    monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: opened.append(Path(url.toLocalFile())) or True)
+    video = Path(new_root) / chosen["title"] / "视频.mp4"
+    click(f"playDownload_{chosen['id']}")
+    assert opened == [video]
+    click(f"openDownloadFolder_{chosen['id']}")
+    assert opened[-1] == video.parent
+    second = download_jobs[1]
+    controller.store.change(second["id"], status="failed", error="网络中断，请重试。")
+    unrelated_batch = controller.store.create([local_media], options | {"kind": "transcribe"}, waiting=True)
+    controller.viewBatch(unrelated_batch)
+    controller.refresh()
+    click(f"retryDownload_{second['id']}")
+    wait(lambda: not controller.running and controller.store.item(second["id"])["status"] == "done")
+    assert controller.store.list_jobs(unrelated_batch)[0]["status"] == "waiting"
     window.resize(860, 620)
     QTest.qWait(140)
-    snapshot("14-compact-queue.png")
-    chosen = download_jobs[0]
-    directory = tmp_path / "已完成视频"
-    directory.mkdir()
-    video = directory / "视频.mp4"
-    video.write_bytes(b"mock-video-result")
-    result = {"kind": "video", "path": str(video), "bytes": 2048, "width": 1280, "height": 720, "duration": 5}
-    controller.store.change(chosen["id"], status="done", destination=str(directory), result=json.dumps(result), progress=1)
-    controller.refresh()
-    click("navHistory")
-    click(f"historyBatch_{chosen['batch']}")
+    snapshot("15-dedicated-download-compact.png")
+    scroll = find("downloadScroll").property("contentItem")
+    scroll.setProperty("contentY", max(0, scroll.property("contentHeight") - scroll.height()))
+    QTest.qWait(140)
+    snapshot("16-dedicated-download-tasks-compact.png")
+    click(f"viewDownload_{chosen['id']}")
     assert controller.detail["resultType"] == "video"
     assert not find("copyResult").property("visible")
     assert not find("resultViewSwitch").property("visible")
-    opened = []
-    monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: opened.append(Path(url.toLocalFile())) or True)
     click("playResultVideo")
-    assert opened == [video]
+    assert opened[-1] == video
     play = find("playResultVideo")
     assert play.mapToScene(QPointF(0, play.height())).y() < window.height() - 20
-    snapshot("15-video-result-compact.png")
+    snapshot("17-video-result-compact.png")
     window.resize(1280, 800)
     QTest.qWait(140)
-    snapshot("16-video-result.png")
+    snapshot("18-video-result.png")
+    click("navDownload")
+    click("clearDownloadLinks")
+    assert find("downloadInput").property("text") == ""
+    assert controller.inputs == [] and controller.selectedCount == 0
+    assert len(controller.downloadJobs) == 2
+    assert not find("startDownloads").property("enabled")
     assert not warnings, warnings
     window.close()
     app.processEvents()

@@ -4,7 +4,8 @@ Set-Location -LiteralPath $PSScriptRoot
 $root = $PSScriptRoot
 $env:PYINSTALLER_CONFIG_DIR = Join-Path $root '.build/pyinstaller-cache'
 $env:PYTHONUSERBASE = Join-Path $root '.build/python-user'
-$version = '1.3.0'
+$version = (Get-Content -LiteralPath (Join-Path $root 'VERSION') -Raw).Trim()
+if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'VERSION must contain a semantic version.' }
 $release = Join-Path $root ".build/release/$version/Pianyu"
 
 if (-not $PackageOnly) {
@@ -45,6 +46,10 @@ if (-not (Test-Path -LiteralPath "$release/Pianyu.exe")) { throw 'Pianyu.exe is 
 Copy-Item -Path 'ui/*' -Destination "$release/ui" -Recurse -Force
 Copy-Item -Path '.build/fonts/*' -Destination "$release/ui" -Force
 Copy-Item -LiteralPath 'README.md','THIRD_PARTY.md' -Destination $release -Force
+Copy-Item -LiteralPath 'VERSION','CHANGELOG.md' -Destination $release -Force
+Copy-Item -LiteralPath 'docs' -Destination $release -Recurse -Force
+& '.\.venv\Scripts\python.exe' -B '.\deployment\prepare_release.py' $release
+if ($LASTEXITCODE) { throw 'Release notices or runtime preparation failed.' }
 if ($PortableOnly) { Write-Output "$release/Pianyu.exe"; return }
 & '.\.build\inno\ISCC.exe' "/DAppVersion=$version" '.\packaging.iss'
 if ($LASTEXITCODE) { throw 'Inno Setup compilation failed.' }

@@ -176,6 +176,13 @@ class Store:
             """, (job, job)).fetchall()
             return sorted(row["id"] for row in rows)
 
+    def release_waiting_batch(self, batch):
+        with self.connect() as db:
+            rows = db.execute("""
+                UPDATE jobs SET status='queued' WHERE status='waiting' AND batch=? RETURNING id
+            """, (batch,)).fetchall()
+            return sorted(row["id"] for row in rows)
+
     def prepare_retry(self, batch, job=0):
         statuses = ",".join("?" * len(RETRYABLE))
         with self.connect() as db:
@@ -213,6 +220,10 @@ class Store:
     def active_jobs(self):
         parameters = ",".join("?" * len(ACTIVE))
         return self._job_rows(f"jobs.status IN ({parameters})", ACTIVE)
+
+    def download_jobs(self):
+        return self._job_rows("COALESCE(json_extract(jobs.job_options, '$.kind'), "
+                              "json_extract(batches.options, '$.kind'), 'transcribe')='download'", ())
 
     def _job_rows(self, predicate, parameters):
         with self.connect() as db:

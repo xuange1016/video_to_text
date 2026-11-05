@@ -1,3 +1,7 @@
+#ifndef ReleaseDir
+  #define ReleaseDir ".build\release\" + AppVersion + "\Pianyu"
+#endif
+
 [Setup]
 AppId={{BCC6455C-0B16-4424-8622-783F0F96C6C0}
 AppName=片语
@@ -26,7 +30,7 @@ Name: "chinese"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 Name: "startmenu"; Description: "创建开始菜单快捷方式"
 
 [Files]
-Source: ".build\release\{#AppVersion}\Pianyu\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#ReleaseDir}\*"; DestDir: "{app}"; Excludes: "*.log,instance.lock"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{userprograms}\片语"; Filename: "{app}\Pianyu.exe"; WorkingDir: "{app}"; Tasks: startmenu

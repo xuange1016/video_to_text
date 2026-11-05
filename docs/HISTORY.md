@@ -29,4 +29,4 @@
 
 因此公开安装包的 SHA256 与早期仅在本机生成的安装包不同。这是本次分发补正，校验请以对应 Release 内的 `SHA256SUMS.txt` 为准；它与源码证明中的原始程序 EXE SHA256 是不同的文件。
 
-历史版本适合查看演进与回归问题，日常使用建议下载 [最新版本](https://github.com/xuange1016/video_to_text/releases/latest)。所有版本共用同一用户数据位置，旧程序未保证能完整理解新版本的任务类型，请勿直接用旧版操作自己的日常任务库。开发隔离方法见 [最新版开发文档](https://github.com/xuange1016/video_to_text/blob/main/docs/DEVELOPMENT.md)。
+历史版本适合查看演进与回归问题，日常使用建议下载 [最新版本](https://github.com/xuange1016/video_to_text/releases/latest)。所有版本共用同一用户数据位置，旧程序未保证能完整理解新版本的任务类型，请勿直接用旧版操作自己的日常任务库。开发隔离方法见 [DEVELOPMENT.md](DEVELOPMENT.md)。

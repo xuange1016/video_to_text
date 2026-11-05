@@ -43,6 +43,7 @@ class Controller(QObject):
     activeChanged = Signal()
     historyChanged = Signal()
     batchChanged = Signal()
+    downloadJobsChanged = Signal()
     folderCheckChanged = Signal()
     settingsSaved = Signal()
     smallDownloadChanged = Signal()
@@ -78,6 +79,9 @@ class Controller(QObject):
         self._duplicates = 0
         self._folders = []
         self._stage = 1
+        self._import_states = {}
+        self._import_generations = {"transcribe": 0, "download": 0}
+        self._resolving_kind = ""
         self._batch = 0
         self._job = 0
         self._task = ""
@@ -86,6 +90,7 @@ class Controller(QObject):
         self._history = self.store.list_batches()
         self._waiting = self.store.waiting_jobs()
         self._active_jobs = []
+        self._download_jobs = self.store.download_jobs()
         self._parse_stop = threading.Event()
         self._pending = {}
         self._inflight = {}
@@ -148,6 +153,27 @@ class Controller(QObject):
     def importKind(self):
         return self._import_kind
 
+    @Property(str, notify=stateChanged)
+    def resolvingKind(self):
+        return self._resolving_kind
+
+    @Slot(str)
+    def activateImport(self, kind):
+        if kind not in KIND_LABELS or kind == self._import_kind:
+            return
+        self._import_states[self._import_kind] = {
+            "inputs": self._inputs[:], "checked": self._checked.copy(), "folders": self._folders[:],
+            "duplicates": self._duplicates, "stage": self._stage,
+        }
+        state = self._import_states.get(kind, {})
+        self._import_kind = kind
+        self._inputs = list(state.get("inputs", []))
+        self._checked = set(state.get("checked", set()))
+        self._folders = list(state.get("folders", []))
+        self._duplicates = state.get("duplicates", 0)
+        self._stage = state.get("stage", 1)
+        self.stateChanged.emit()
+
     def import_usable(self, media):
         return not media.error and (self._import_kind != "download" or media.source != "本地文件")
 
@@ -202,6 +228,10 @@ class Controller(QObject):
     def activeJobs(self):
         return self._active_jobs
 
+    @Property("QVariantList", notify=downloadJobsChanged)
+    def downloadJobs(self):
+        return self._download_jobs
+
     @Property("QVariantList", notify=historyChanged)
     def history(self):
         return self._history
@@ -228,7 +258,7 @@ class Controller(QObject):
 
     @Slot("QVariantList", str, result="QVariantMap")
     def acceptDrop(self, urls, text):
-        if self._task:
+        if self._task and self._resolving_kind == self._import_kind:
             self.feedback.emit("正在解析，完成后可继续拖入素材。")
             return {"text": "", "foldersAdded": 0, "rejected": 0}
         entries, added, rejected = [], 0, 0
@@ -271,11 +301,23 @@ class Controller(QObject):
 
     @Slot(str)
     def resolve(self, text):
+        if self._task or self._exit:
+            self.feedback.emit("另一个页面正在解析，完成后可继续。")
+            return
         if not text.strip() and not self._folders:
             self.feedback.emit("请粘贴链接或文件路径，或者选择文件夹。")
             return
         folders = self._folders[:]
-        self.start("resolve", lambda: self.platforms.resolve(text, folders, self._parse_stop.is_set))
+        origin = self._import_kind
+        generation = self._import_generations[origin]
+        self._inputs, self._checked, self._duplicates, self._stage = [], set(), 0, 1
+        self._resolving_kind = origin
+
+        def resolve():
+            items, duplicates = self.platforms.resolve(text, folders, self._parse_stop.is_set)
+            return origin, generation, items, duplicates
+
+        self.start("resolve", resolve)
 
     @Slot(str, bool)
     def selectItem(self, key, checked):
@@ -291,13 +333,14 @@ class Controller(QObject):
 
     @Slot()
     def back(self):
-        if not self._task:
+        if not self._task or self._resolving_kind != self._import_kind:
             self._stage = 1
             self.stateChanged.emit()
 
     @Slot()
     def newBatch(self):
-        if not self._task:
+        if not self._task or self._resolving_kind != self._import_kind:
+            self._import_generations[self._import_kind] += 1
             self._stage, self._batch, self._job = 1, 0, 0
             self._inputs, self._folders, self._checked, self._duplicates = [], [], set(), 0
             self.refresh()
@@ -464,10 +507,27 @@ class Controller(QObject):
         self.feedback.emit("素材已加入等待队列。")
         return True
 
+    @Slot(str, str, bool, result=int)
+    def enqueueDownloads(self, root, quality, start_immediately):
+        if self._import_kind != "download":
+            return 0
+        batch = self.create_selection(root, self._settings["model"], self._settings["format"], waiting=True,
+                                      kind="download", quality=quality)
+        if not batch:
+            return 0
+        self._checked.clear()
+        if start_immediately:
+            self.schedule(self.store.release_waiting_batch(batch))
+        else:
+            self.refresh()
+        self.stateChanged.emit()
+        self.feedback.emit("已开始本次下载。" if start_immediately else "已加入下载队列。")
+        return batch
+
     def create_selection(self, root, model, formats, *, waiting, kind="transcribe", quality="720"):
         items = [m for m in self._inputs if m.key in self._checked and not m.error
                  and (kind != "download" or m.source != "本地文件")]
-        if not items or self._task or self._exit:
+        if not items or self._exit or (self._task and self._resolving_kind == self._import_kind):
             return None
         try:
             options = self.options(root, model, formats)
@@ -571,7 +631,16 @@ class Controller(QObject):
 
     @Slot(int, str)
     def retry(self, job, destination):
-        batch = self._batch
+        self.retry_jobs(self._batch, job, destination)
+
+    @Slot(int)
+    @Slot(int, str)
+    def retryDownload(self, job, destination=""):
+        record = self.store.item(job)
+        if record and json.loads(record["options"]).get("kind") == "download":
+            self.retry_jobs(record["batch"], job, destination)
+
+    def retry_jobs(self, batch, job, destination):
         if self._exit:
             return
         if destination and not Path(destination).is_absolute():
@@ -627,6 +696,10 @@ class Controller(QObject):
     def copy(self, value):
         QGuiApplication.clipboard().setText(value)
         self.feedback.emit("文案已复制。")
+
+    @Slot(result=str)
+    def clipboardText(self):
+        return QGuiApplication.clipboard().text()
 
     @Slot(str)
     def openFolder(self, path):
@@ -760,14 +833,25 @@ class Controller(QObject):
     @Slot(str, object, str)
     def finish(self, kind, result, error):
         self._task = ""
+        origin_page = self._resolving_kind
         if kind == "resolve" and result is not None:
-            self._inputs, self._duplicates = result
-            self._checked.clear()
-            self._stage = 2
+            origin, generation, items, duplicates = result
+            if generation == self._import_generations[origin]:
+                if origin == self._import_kind:
+                    self._inputs, self._duplicates = items, duplicates
+                    self._checked.clear()
+                    self._stage = 2
+                else:
+                    state = self._import_states.setdefault(origin, {})
+                    state.update(inputs=items, duplicates=duplicates, checked=set(), stage=2)
+        self._resolving_kind = ""
         self.refresh()
         self.stateChanged.emit()
         if error:
-            self.feedback.emit(error)
+            message = error
+            if origin_page and origin_page != self._import_kind:
+                message = ("视频下载页面解析失败。" if origin_page == "download" else "文案提取页面解析失败。") + error
+            self.feedback.emit(message)
         self.maybe_quit()
 
     def maybe_quit(self):
@@ -784,6 +868,7 @@ class Controller(QObject):
         active = [self.add_estimate(row, estimates, now) for row in self.store.active_jobs()]
         waiting = self.store.waiting_jobs()
         history = self.store.list_batches()
+        downloads = [self.add_estimate(row, estimates, now) for row in self.store.download_jobs()]
         active_changed = active != self._active_jobs
         waiting_changed = waiting != self._waiting
         history_changed = history != self._history
@@ -794,6 +879,9 @@ class Controller(QObject):
             self.queueChanged.emit()
         if history_changed:
             self.historyChanged.emit()
+        if downloads != self._download_jobs:
+            self._download_jobs = downloads
+            self.downloadJobsChanged.emit()
         selected = next((m for m in jobs if m["id"] == self._job), None)
         if not selected and jobs:
             selected = next((m for m in jobs if m["hasResult"]), jobs[0])
