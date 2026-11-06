@@ -4,10 +4,10 @@
 
 # 片语 · Pianyu
 
-**视频叽里呱啦，片语替你记下。**
+**Windows 11 视频转文字与批量下载工具**
 
-把抖音、B 站、本地音视频，变成可以复制、整理、收藏的文字。<br />
-想把视频也带走？隔壁「视频下载」已经备好小推车。🛒
+批量粘贴抖音、B 站链接，或导入本地音视频，提取讲话内容，导出简体中文 TXT 文稿和 SRT 字幕。<br />
+语音识别在本机运行，无需付费语音 API；另有独立页面，支持批量下载抖音、B 站视频。
 
 [![最新版本](https://img.shields.io/github/v/release/xuange1016/video_to_text?style=flat-square&color=315d44)](https://github.com/xuange1016/video_to_text/releases/latest)
 ![Windows 11 x64](https://img.shields.io/badge/Windows_11-x64-315d44?style=flat-square)
